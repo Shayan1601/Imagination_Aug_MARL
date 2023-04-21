@@ -17,6 +17,7 @@ Install the following packages with pip
 pip install torch torchvision torchaudio
 pip install wandb
 pip install gymnasium
+pip install "gymnasium[box2d]"
 ```
 
 
