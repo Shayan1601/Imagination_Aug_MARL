@@ -455,6 +455,7 @@ num_episodes = 5000  # Define the number of episodes for training
 mean_rewards = []
 for episode in range(num_episodes):
     state = env.reset()
+    env.render()
     done = False
     total_reward = 0
 
@@ -465,7 +466,7 @@ for episode in range(num_episodes):
             actions.append(action)
 
         reward, done = env.step(actions)
-
+        env.render()
         next_state = env.get_global_obs()
         next_state = np.transpose(next_state, (2, 0, 1))  # Transpose dimensions to (channels, height, width)
         next_state = np.expand_dims(next_state, axis=0)  # Add an extra dimension for the batch

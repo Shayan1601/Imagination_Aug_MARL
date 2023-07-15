@@ -1,0 +1,3 @@
+* Don't always use Linear Layers; they are computationally expensive. In MADQN instead of flattening the 2D or 3D input, you can just use a Conv Layer
+* Try to modularize the code a bit: one file for the environment, one for the trainer, one for the agent, one for the utility functions, one for the configuration (batch_size, learning rate, epsilon) etc. Otherwise, the code is hard to read. 
+* It would be better to use the [gymnasium](https://gymnasium.farama.org/) format for the environments since this is the standard for RL environments. In such a way, if we want to test the code on another environment, it should still work without extensive modification.
