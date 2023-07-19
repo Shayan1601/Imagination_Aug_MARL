@@ -357,43 +357,62 @@ class I2A_FindTreasure(nn.Module):
             nn.ReLU(),
         )
 
+        # TODO miss the model free part of I2A
+        self.model_free = nn.Sequential(
+            nn.Linear(self.state_dim, hidden_dim),
+            nn.ReLU(),
+        )
+
         # Define the policy head
         self.policy_head = nn.Sequential(
-            nn.Linear(hidden_dim, action_dim[0]),
+            nn.Linear(2*hidden_dim, action_dim[0]),
             nn.Softmax(dim=-1),
         )
 
         # Define the value head
-        self.value_head = nn.Linear(hidden_dim, 1)
+        self.value_head = nn.Linear(2*hidden_dim, 1)
 
     def forward(self, state, action_space):
         # Check if the state has the correct shape
         if state.shape[1] != 3 or state.shape[2] != 7 or state.shape[3] != 7:
             print("irregular state shape before passing to the env model:", state.shape)
-            raise ValueError("Invalid state dimension. Expected shape: (7, 7, 3)")
+            raise ValueError("Invalid state dimension. Expected shape: (3, 7, 7)")
 
         # Flatten the state tensor
         if isinstance(state, np.ndarray):
             state = torch.from_numpy(state)
         state = torch.reshape(state , (state.shape[0], -1))
 
+        # compute the model free part
+        model_free_hidden = self.model_free(state)
+
         # Pass the flattened state to the imagination module
         imagined_states = []
         for _ in range(self.rollout_len):
+            # TODO: use a distilled policy to generate actions instead of random actions
             # Generate a random action
-            action = torch.randint(int(action_space), (state.shape[0], 1))
+            action = torch.randint(self.action_dim, (state.shape[0], 1))
 
             # Pass the concatenated state-action to the environment model
             next_state = self.env_model(state, action)
 
             # Store the next state in the imagined states
             imagined_states.append(next_state)
+            state = next_state
 
         # Concatenate the imagined states along the last dimension
         imagined_states = torch.cat(imagined_states, dim=-1)
+        encoded_imagined_states = self.imagination(imagined_states)
+        
+        # Concatenate the model free hidden state and the encoded imagined states
+        full_hidden = torch.cat([model_free_hidden, encoded_imagined_states], dim=-1)
 
-        # Return the imagined states and the original state
-        return imagined_states, state
+        action_prob = self.policy_head(full_hidden)
+        value = self.value_head(full_hidden)
+        #   Return the imagined states and the original state
+        return action_prob, value
+    
+
 # Defining the hyperparameters for both agents
 class Hyperparameters:
     def __init__(self, num_episodes, batch_size, replay_memory_size, rollout_len, gamma, lr):
@@ -482,6 +501,7 @@ def select_action(model, state, output_size, epsilon):
         action_space = torch.tensor([output_size[0]], dtype=torch.float32).unsqueeze(0)
 
         with torch.no_grad():
+            # TODO: At moment, this does not return action probs, but concatenated imagined states
             action_probs, _ = model(state, action_space)
 
         m = torch.distributions.Categorical(logits=action_probs)
@@ -516,6 +536,8 @@ def main(args):
     # Main training loop
     for episode in range(args.num_episodes):
         state = env.reset()
+        state = np.swapaxes(state, 2, 0)
+        state = np.expand_dims(state, axis=0)
         print("reset environment:", state.shape)
         episode_reward_agent1 = 0
         episode_reward_agent2 = 0
@@ -538,6 +560,9 @@ def main(args):
             next_state2 = np.transpose(next_state2, (2, 0, 1))  # Transpose dimensions to (channels, height, width)
             next_state2 = np.expand_dims(next_state2, axis=0)
 
+            if state.shape != (1,3,7,7) and next_state1 != (1,3,7,7) and next_state2 != (1,3,7,7):
+                print("ERROR")
+                break
             memory_agent1.push(state, action_agent1, reward, next_state1, done)
             memory_agent2.push(state, action_agent2, reward, next_state2, done)
 
@@ -553,79 +578,27 @@ def main(args):
                 states2, actions2, rewards2, next_states2, dones = memory_agent2.sample(args.batch_size)
                 print(len(states1), len(states2))
 
-                max_state_dim1 = max(states1[0].shape[1:], next_states1[0].shape[1:])
-                common_shape1 = (len(states1),) + max_state_dim1
+                for i, state in enumerate(states1):
+                    print(state.shape)
+                    states1[i] = torch.Tensor(state)  # Convert to a PyTorch tensor
+                states1 = torch.cat(states1)
 
-                padded_states1 = []
-                padded_next_states1 = []
-                for state in states1:
-                    if state.shape[1:] != (7, 7, 3):
-                        continue  # Skip states with incorrect shape
-                    state = torch.Tensor(state)  # Convert to a PyTorch tensor
-
-                    padding = torch.zeros(common_shape1) - 1  # Use a negative value for padding
-                    state_dim = state.dim()  # Get the number of dimensions of the state tensor
-
-                    if state_dim != 3:
-                        print("Skipping state with unexpected dimensions:", state_dim)
-                        continue
-
-                    padding[:state.shape[0], :state.shape[1], :state.shape[2]] = state.permute(2, 1, 0)
-                    padded_states1.append(padding)
-
-                if len(padded_states1) == 0:
-                    continue  # No valid states, skip training
-                states1 = torch.stack(padded_states1)
-
-
-                max_state_dim2 = max(states2[0].shape[1:], next_states2[0].shape[1:])
-                common_shape2 = (len(states2),) + max_state_dim2
-                padded_states2 = []
-                padded_next_states2 = []
+                temp_states2 = []
                 for state in states2:
-                    if state.shape[1:] != (7, 7, 3):
-                        continue  # Skip states with incorrect shape
-                    state = torch.Tensor(state)  # Convert to a PyTorch tensor
-                    padding = torch.zeros(common_shape2) - 1  # Use a negative value for padding
-                    state_dim = state.dim()  # Get the number of dimensions of the state tensor
+                    temp_states2.append(torch.Tensor(state))  # Convert to a PyTorch tensor
+                states2 = torch.cat(temp_states2)
 
-                    if state_dim != 3:
-                        print("Skipping state with unexpected dimensions:", state_dim)
-                        continue
-
-                    padding[:state.shape[0], :state.shape[1], :state.shape[2]] = state.permute(2, 1, 0)
-                    padded_states2.append(padding)
-
-                if len(padded_states2) == 0:
-                    continue  # No valid states, skip training
-
-                states2 = torch.stack(padded_states2)
-
+                next_state_tensor1 = []
                 for next_state in next_states1:
-                    if next_state.shape[1:] != (7, 7, 3):
-                        continue  # Skip states with incorrect shape
-                    padding = torch.zeros(max_state_dim) - 1  # Use a negative value for padding
-                    next_state_tensor1 = torch.Tensor(next_state)
-                    padding[:next_state_tensor1.shape[0], :next_state_tensor1.shape[1], :next_state_tensor1.shape[2]] = next_state_tensor1
-                    padded_next_states1.append(padding)
+                    next_state_tensor1.append(torch.Tensor(next_state))
 
-                if len(padded_next_states1) == 0:
-                    continue  # No valid next states, skip training
+                next_states1 = torch.cat(next_state_tensor1)
 
-                next_states1 = torch.stack(padded_next_states1)
-
+                next_state_tensor2 = []
                 for next_state in next_states2:
-                    if next_state.shape[1:] != (7, 7, 3):
-                        continue  # Skip states with incorrect shape
-                    padding = torch.zeros(max_state_dim) - 1  # Use a negative value for padding
-                    next_state_tensor2 = torch.Tensor(next_state)
-                    padding[:next_state_tensor2.shape[0], :next_state_tensor2.shape[1], :next_state_tensor2.shape[2]] = next_state_tensor2
-                    padded_next_states2.append(padding)
+                    next_state_tensor2.append(torch.Tensor(next_state))
 
-                if len(padded_next_states2) == 0:
-                    continue  # No valid next states, skip training
-
-                next_states2 = torch.stack(padded_next_states2)
+                next_states2 = torch.cat(next_state_tensor2)
 
                 actions1 = torch.LongTensor(actions1)
                 actions2 = torch.LongTensor(actions2)
@@ -636,11 +609,14 @@ def main(args):
 
 
                 # Compute the current Q values for both agents
+                # TODO: action prob 
                 action_probs_agent1, state_values_agent1 = model_agent1(states1, actions1)
-                action_values_agent1 = action_probs_agent1.gather(1, actions1)
+                actions1 = actions1.unsqueeze(-1)
+                action_values_agent1 = torch.gather(action_probs_agent1, 1,actions1)
 
                 action_probs_agent2, state_values_agent2 = model_agent2(states2, actions2)
-                action_values_agent2 = action_probs_agent2.gather(1, actions2)
+                actions2 = actions2.unsqueeze(-1)
+                action_values_agent2 = torch.gather(action_probs_agent2, 1, actions2)
 
                 # Compute the target Q values for both agents
                 _, next_state_values_agent1 = model_agent1(next_states1, actions1)
