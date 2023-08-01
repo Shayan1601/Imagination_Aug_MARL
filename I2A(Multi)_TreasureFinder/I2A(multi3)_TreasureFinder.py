@@ -24,6 +24,7 @@ import cv2
 from Treasure_FinderEnv import EnvFindTreasure
 from Environment_Model import EnvironmentModel
 from Imagination_Core import I2A_FindTreasure
+from Model_Free_A2C import ModelFreeAgent
 
 # Defining the hyperparameters for both agents
 class Hyperparameters:
