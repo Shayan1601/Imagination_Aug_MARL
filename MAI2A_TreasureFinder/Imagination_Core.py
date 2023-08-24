@@ -10,7 +10,8 @@ from DistillPolicy import DistillPolicyAgent
 class I2A_FindTreasure(nn.Module):
     def __init__(self, state_dim, action_dim, rollout_len=5, hidden_dim=256):
         super(I2A_FindTreasure, self).__init__()
-        self.state_dim = np.prod(state_dim)
+        self.state_dim = (state_dim[-1], *state_dim[:2])
+        self.flattened_state_dim = state_dim[0] * state_dim[1] * state_dim[2]
         self.action_dim = action_dim[0]
         self.rollout_len = rollout_len
 
@@ -19,14 +20,14 @@ class I2A_FindTreasure(nn.Module):
 
         # Define the imagination module (rollout encoders)
         self.imagination = nn.Sequential(
-            nn.Linear(self.state_dim * rollout_len, hidden_dim),
+            nn.Linear(self.flattened_state_dim * rollout_len, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
         )
 
         # the model free part of I2A
-        self.model_free_agent = ModelFreeAgent(self.state_dim, self.action_dim)
+        self.model_free_agent = ModelFreeAgent(self.flattened_state_dim, self.action_dim)
 
         # Define the policy head
         self.policy_head = nn.Sequential(
@@ -38,7 +39,7 @@ class I2A_FindTreasure(nn.Module):
         self.value_head = nn.Linear(2*hidden_dim, 1)
         
         #Define the distilled policy
-        self.distilledpolicy = DistillPolicyAgent(self.state_dim, self.action_dim)
+        self.distilledpolicy = DistillPolicyAgent(self.flattened_state_dim, self.action_dim)
 
     def forward(self, state, action_space):
         # Check if the state has the correct shape
@@ -49,24 +50,25 @@ class I2A_FindTreasure(nn.Module):
         # Flatten the state tensor
         if isinstance(state, np.ndarray):
             state = torch.from_numpy(state)
-        state = torch.reshape(state , (state.shape[0], -1))
+        flattened_state = torch.reshape(state , (state.shape[0], -1))
 
         # compute the model free part
         #model_free_hidden = self.model_free(state)
-        output_state_representation = self.model_free_agent(state)
+        output_state_representation = self.model_free_agent(flattened_state)
 
         # Pass the flattened state to the imagination module
         imagined_states = []
         for _ in range(self.rollout_len):
             #using Distilled policy to select an action
-            action =self.distilledpolicy(state)
+            action =self.distilledpolicy(flattened_state)
             
 
             # Pass the concatenated state-action to the environment model
             next_state = self.env_model(state, action)
 
             # Store the next state in the imagined states
-            imagined_states.append(next_state)
+            flattened_state = torch.reshape(next_state, (next_state.size(0), -1))
+            imagined_states.append(flattened_state)
             state = next_state
 
         # Concatenate the imagined states along the last dimension

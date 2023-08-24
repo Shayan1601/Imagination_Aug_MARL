@@ -99,11 +99,7 @@ class ReplayMemory(object):
 replay_memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)
 replay_memory_agent2 = ReplayMemory(hyperparameters_agent2.replay_memory_size)
 
-# Define the namedtuple to store experiences
-Experience = namedtuple('Experience', ('state', 'action', 'reward', 'next_state', 'done'))
-
 # Function to select an action using the current policy
-
 def select_action(model, state, output_size, epsilon):
     #if epsilon > 0.95:
     if np.random.rand() < epsilon:

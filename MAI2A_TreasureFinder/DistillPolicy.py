@@ -14,13 +14,15 @@ class DistillPolicyAgent(nn.Module):
         self.fc_layers = nn.Sequential(
             nn.Linear(torch.prod(torch.tensor(in_shape)), 256),
             nn.ReLU(),
-            nn.Linear(256, 1)
+            nn.Linear(256, num_actions)
         )
 
     def forward(self, x):
         x = x.to(torch.float32)
         x = x.view(x.size(0), -1)
         x = self.fc_layers(x)
+        x = torch.softmax(x, dim=-1)
+        x = torch.argmax(x, dim=-1)
         return x
 
 
