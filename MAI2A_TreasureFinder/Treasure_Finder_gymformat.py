@@ -3,13 +3,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import cv2
-#defining the environment
-class EnvFindTreasure(object):
-    def __init__(self, map_size):
-        self.map_size = map_size
-        if map_size<7:
-            self.map_size = 7
+import gym
+from gym import spaces
+import numpy as np
 
+class TreasureFinderEnv(gym.Env):
+    def __init__(self, map_size):
+        super(TreasureFinderEnv, self).__init__()
+        self.map_size = map_size
+        if map_size < 7:
+            self.map_size = 7
+        
+        self.action_space = spaces.Discrete(5)  # Four discrete actions: 0, 1, 2, 3
+        self.observation_space = spaces.Box(low=0, high=1, shape=(self.map_size, self.map_size, 3), dtype=np.float32)
+        
         self.half_pos = int((self.map_size - 1)/2)
 
         self.occupancy = np.zeros((self.map_size, self.map_size))
@@ -36,6 +43,7 @@ class EnvFindTreasure(object):
 
         # sub pos = [self.map_size - 2, self.map_size - 2]
         self.sub_pos = [self.map_size - 3, self.map_size - 2]
+
 
     def reset(self):
         self.occupancy = np.zeros((self.map_size, self.map_size))
@@ -69,8 +77,11 @@ class EnvFindTreasure(object):
         state[self.treasure_pos[0], self.treasure_pos[1], 2] = 1
 
         return state
+
     def step(self, action_list):
+        reward1 = 0
         reward = 0
+        done = False
         # agent1 move
         if action_list[0] == 0:  # move up
             if self.occupancy[self.agt1_pos[0]-1][self.agt1_pos[1]] != 1:  # if can move
@@ -148,13 +159,10 @@ class EnvFindTreasure(object):
         if (self.agt1_pos == self.sub_pos and self.agt2_pos == self.lever_pos) or (self.agt1_pos == self.lever_pos and self.agt2_pos == self.sub_pos):
             reward = reward + 3
 
-        done = False
+            done = False
         if reward > 0:
             done = True
-
-        return reward, done
-
-    def get_global_obs(self):
+        #calculating global obs
         obs = np.zeros((self.map_size, self.map_size, 3))
         for i in range(self.map_size):
             for j in range(self.map_size):
@@ -177,7 +185,60 @@ class EnvFindTreasure(object):
         obs[self.sub_pos[0], self.sub_pos[1], 0] = 1.0
         obs[self.sub_pos[0], self.sub_pos[1], 1] = 0.0
         obs[self.sub_pos[0], self.sub_pos[1], 2] = 1.0
-        return obs
+        state = obs  
+        return state, reward, done
+
+    def render(self, mode='human'):
+        obs = self.get_global_obs()
+        enlarge = 30
+        new_obs = np.ones((self.map_size*enlarge, self.map_size*enlarge, 3))
+        for i in range(self.map_size):
+            for j in range(self.map_size):
+
+                if obs[i][j][0] == 0.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 0.0:
+                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (0, 0, 0), -1)
+                if obs[i][j][0] == 1.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 0.0:
+                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (0, 0, 255), -1)
+                if obs[i][j][0] == 0.0 and obs[i][j][1] == 1.0 and obs[i][j][2] == 0.0:
+                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (0, 255, 0), -1)
+                if obs[i][j][0] == 0.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 1.0:
+                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (255, 0, 0), -1)
+                if obs[i][j][0] == 1.0 and obs[i][j][1] == 1.0 and obs[i][j][2] == 0.0:
+                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (0, 255, 255), -1)
+                if obs[i][j][0] == 1.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 1.0:
+                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (255, 0, 255), -1)
+        cv2.imshow('image', new_obs)
+        cv2.waitKey(100)
+
+    # ... (rest of the methods)
+    
+    def plot_scene(self):
+        fig = plt.figure(figsize=(5, 5))
+        gs = GridSpec(3, 2, figure=fig)
+        ax1 = fig.add_subplot(gs[0:2, 0:2])
+        plt.xticks([])
+        plt.yticks([])
+        ax2 = fig.add_subplot(gs[2, 0:1])
+        plt.xticks([])
+        plt.yticks([])
+        ax3 = fig.add_subplot(gs[2, 1:2])
+        plt.xticks([])
+        plt.yticks([])
+
+        ax1.imshow(self.get_global_obs())
+        ax2.imshow(self.get_agt1_obs())
+        ax3.imshow(self.get_agt2_obs())
+
+        plt.show()
+        
+    def get_state(self):
+
+        state = np.zeros((1, 4))
+        state[0, 0] = self.agt1_pos[0] / self.map_size
+        state[0, 1] = self.agt1_pos[1] / self.map_size
+        state[0, 2] = self.agt2_pos[0] / self.map_size
+        state[0, 3] = self.agt2_pos[1] / self.map_size
+        return state   
 
     def get_agt1_obs(self):
         obs = np.zeros((3, 3, 3))
@@ -239,58 +300,12 @@ class EnvFindTreasure(object):
         obs[1, 1, 0] = 0.0
         obs[1, 1, 1] = 0.0
         obs[1, 1, 2] = 1.0
-        return obs
-
+        return obs    
+         
     def get_obs(self):
         return [self.get_agt1_obs(), self.get_agt2_obs()]
 
-    def get_state(self):
 
-        state = np.zeros((1, 4))
-        state[0, 0] = self.agt1_pos[0] / self.map_size
-        state[0, 1] = self.agt1_pos[1] / self.map_size
-        state[0, 2] = self.agt2_pos[0] / self.map_size
-        state[0, 3] = self.agt2_pos[1] / self.map_size
-        return state
 
-    def plot_scene(self):
-        fig = plt.figure(figsize=(5, 5))
-        gs = GridSpec(3, 2, figure=fig)
-        ax1 = fig.add_subplot(gs[0:2, 0:2])
-        plt.xticks([])
-        plt.yticks([])
-        ax2 = fig.add_subplot(gs[2, 0:1])
-        plt.xticks([])
-        plt.yticks([])
-        ax3 = fig.add_subplot(gs[2, 1:2])
-        plt.xticks([])
-        plt.yticks([])
-
-        ax1.imshow(self.get_global_obs())
-        ax2.imshow(self.get_agt1_obs())
-        ax3.imshow(self.get_agt2_obs())
-
-        plt.show()
-
-    def render(self):
-
-        obs = self.get_global_obs()
-        enlarge = 30
-        new_obs = np.ones((self.map_size*enlarge, self.map_size*enlarge, 3))
-        for i in range(self.map_size):
-            for j in range(self.map_size):
-
-                if obs[i][j][0] == 0.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 0.0:
-                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (0, 0, 0), -1)
-                if obs[i][j][0] == 1.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 0.0:
-                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (0, 0, 255), -1)
-                if obs[i][j][0] == 0.0 and obs[i][j][1] == 1.0 and obs[i][j][2] == 0.0:
-                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (0, 255, 0), -1)
-                if obs[i][j][0] == 0.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 1.0:
-                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (255, 0, 0), -1)
-                if obs[i][j][0] == 1.0 and obs[i][j][1] == 1.0 and obs[i][j][2] == 0.0:
-                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (0, 255, 255), -1)
-                if obs[i][j][0] == 1.0 and obs[i][j][1] == 0.0 and obs[i][j][2] == 1.0:
-                    cv2.rectangle(new_obs, (j * enlarge, i * enlarge), (j * enlarge + enlarge, i * enlarge + enlarge), (255, 0, 255), -1)
-        cv2.imshow('image', new_obs)
-        cv2.waitKey(100)
+# Create an instance of the TreasureFinderEnv class
+env = TreasureFinderEnv(map_size=7)

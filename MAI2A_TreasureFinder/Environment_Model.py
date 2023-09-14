@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from config1 import config
 
 
 class EnvironmentModel(nn.Module):
@@ -12,15 +13,14 @@ class EnvironmentModel(nn.Module):
         # actions is passed as a one-hot matrix instead of a one-hot vector
         self.action_dim = (action_dim, *state_dim[1:])  
         self.total_input_dim = (state_dim[0] + action_dim, *state_dim[1:])
-        # TODO: these should be hyperparameters, i will put number as a placeholder.
-        # then i suggest you to create a config file and put all the hyperparameters there.
-        conv1_out_channels = 32
-        conv1_filter_size = 3
-        conv1_stride = 1
-        conv2_out_channels = 16
-        conv2_filter_size = 3
-        conv2_stride = 1    
-        fc1_out_dim = 32  
+        # Load hyperparameters from the config file
+        conv1_out_channels = config["conv1_out_channels"]
+        conv1_filter_size = config["conv1_filter_size"]
+        conv1_stride = config["conv1_stride"]
+        conv2_out_channels = config["conv2_out_channels"]
+        conv2_filter_size = config["conv2_filter_size"]
+        conv2_stride = config["conv2_stride"]
+        fc1_out_dim = config["fc1_out_dim"]
 
         self.conv1 = nn.Conv2d(self.total_input_dim[0], conv1_out_channels, conv1_filter_size, conv1_stride)
         self.conv2 = nn.Conv2d(conv1_out_channels, conv2_out_channels, conv2_filter_size, conv2_stride)
