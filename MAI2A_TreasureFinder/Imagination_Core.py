@@ -42,6 +42,12 @@ class I2A_FindTreasure(nn.Module):
         self.distilledpolicy = DistillPolicyAgent(self.flattened_state_dim, self.action_dim)
 
     def forward(self, state, action_space):
+        """
+        The forward pass of the I2A module.
+        :param state: The state tensor of shape (batch_size, 3, 7, 7)
+        :param action_space: The action space of the environment
+        :return: The action prob and the state value (batch_size, action_space) and (batch_size, 1)
+        """
         # Check if the state has the correct shape
         if state.shape[1] != 3 or state.shape[2] != 7 or state.shape[3] != 7:
             print("irregular state shape before passing to the env model:", state.shape)
@@ -60,6 +66,7 @@ class I2A_FindTreasure(nn.Module):
         imagined_states = []
         for _ in range(self.rollout_len):
             #using Distilled policy to select an action
+            # TODO: add exploration
             action =self.distilledpolicy(flattened_state)
             
 

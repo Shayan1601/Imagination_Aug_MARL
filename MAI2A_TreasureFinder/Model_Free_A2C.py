@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import torch.autograd as autograd
 
 from IPython.display import clear_output
-from Treasure_FinderEnv import EnvFindTreasure
+from Treasure_Finder_gymformat import TreasureFinderEnv
 import matplotlib.pyplot as plt
 #%matplotlib inline
 
