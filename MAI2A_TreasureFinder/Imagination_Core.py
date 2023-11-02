@@ -8,7 +8,7 @@ from Model_Free_A2C import ModelFreeAgent
 from DistillPolicy import DistillPolicyAgent
 
 class I2A_FindTreasure(nn.Module):
-    def __init__(self, state_dim, action_dim, rollout_len=5, hidden_dim=256):
+    def __init__(self, state_dim, action_dim, num_agents, rollout_len=5, hidden_dim=256):
         super(I2A_FindTreasure, self).__init__()
         self.state_dim = (state_dim[-1], *state_dim[:2])
         self.flattened_state_dim = state_dim[0] * state_dim[1] * state_dim[2]
@@ -16,7 +16,7 @@ class I2A_FindTreasure(nn.Module):
         self.rollout_len = rollout_len
 
         # Define the environment model
-        self.env_model = EnvironmentModel(self.state_dim, self.action_dim)
+        self.env_model = EnvironmentModel(self.state_dim, self.action_dim, num_agents)
 
         # Define the imagination module (rollout encoders)
         self.imagination = nn.Sequential(
@@ -38,14 +38,15 @@ class I2A_FindTreasure(nn.Module):
         # Define the value head
         self.value_head = nn.Linear(2*hidden_dim, 1)
         
-        #Define the distilled policy
+        # Define the distilled policy
         self.distilledpolicy = DistillPolicyAgent(self.flattened_state_dim, self.action_dim)
 
-    def forward(self, state, action_space):
+    def forward(self, state, action_space, other_agent_distilled_policies):
         """
         The forward pass of the I2A module.
         :param state: The state tensor of shape (batch_size, 3, 7, 7)
         :param action_space: The action space of the environment
+        :param other_agent_distilled_policies: The distilled policies of the other agents
         :return: The action prob and the state value (batch_size, action_space) and (batch_size, 1)
         """
         # Check if the state has the correct shape
@@ -67,11 +68,12 @@ class I2A_FindTreasure(nn.Module):
         for _ in range(self.rollout_len):
             #using Distilled policy to select an action
             # TODO: add exploration
-            action =self.distilledpolicy(flattened_state)
+            action1 = self.distilledpolicy(flattened_state)
+            action2 = other_agent_distilled_policies(flattened_state)
             
 
             # Pass the concatenated state-action to the environment model
-            next_state = self.env_model(state, action)
+            next_state = self.env_model(state, action1, action2)
 
             # Store the next state in the imagined states
             flattened_state = torch.reshape(next_state, (next_state.size(0), -1))

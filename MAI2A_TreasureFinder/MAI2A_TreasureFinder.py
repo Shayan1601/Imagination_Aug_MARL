@@ -41,19 +41,20 @@ class ReplayMemory(object):
 replay_memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)
 replay_memory_agent2 = ReplayMemory(hyperparameters_agent2.replay_memory_size)
 
-# Function to select an action using the current policy
-def select_action(model, state, output_size, epsilon):
+# Function to select an action using the current policy and other agents distilled policy
+def select_action(model, state, output_size, other_agents_distilled_policies, epsilon):
     #if epsilon > 0.95:
     if np.random.rand() < epsilon:
         # Random action
         action = torch.randint(0, output_size[0], (1,))
+        
     else:
         # Use I2A module to produce action
         action_space = torch.tensor([output_size[0]], dtype=torch.float32).unsqueeze(0)
 
         with torch.no_grad():
             
-            action_probs, _ = model(state, action_space)
+            action_probs, _ = model(state, action_space, other_agents_distilled_policies)
             #print("action probe shape:", action_probs.shape)
 
         m = torch.distributions.Categorical(logits=action_probs)
@@ -68,20 +69,22 @@ if __name__ == "__main__":
 
     input_size = (7, 7, 3)  # Update with the appropriate state size attribute
     output_size = (5,)
+    num_agents = 2
     epsilon = 1.0
     epsilon_decay = 0.999
     min_epsilon = 0.01
 
 
     # Instantiate the I2A models and optimizers for both agents
-    model_agent1 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent1.rollout_len)
-    model_agent2 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent2.rollout_len)
+    model_agent1 = I2A_FindTreasure(input_size, output_size, num_agents, hyperparameters_agent1.rollout_len)
+    model_agent2 = I2A_FindTreasure(input_size, output_size, num_agents, hyperparameters_agent2.rollout_len)
     # optimizer_world_model_agent1 = optim.Adam(model_agent1.env_model.parameters(), lr=hyperparameters_agent1.lr)
     # optimizer_world_model_agent2 = optim.Adam(model_agent2.env_model.parameters(), lr=hyperparameters_agent2.lr)
     # optimizer_distilled_policy_agent1 = optim.Adam(model_agent1.distilledpolicy.parameters(), lr=hyperparameters_agent1.lr)
     # optimizer_distilled_policy_agent2 = optim.Adam(model_agent2.distilledpolicy.parameters(), lr=hyperparameters_agent2.lr)
     optimizer_agent1 = optim.Adam(model_agent1.parameters(), lr=hyperparameters_agent1.lr)
     optimizer_agent2 = optim.Adam(model_agent2.parameters(), lr=hyperparameters_agent2.lr)
+
 
     world_model_loss_function = nn.CrossEntropyLoss()
     distil_policy_loss_function = nn.NLLLoss()
@@ -109,8 +112,8 @@ if __name__ == "__main__":
         for t in count():
             # Select actions based on the current policies for both agents
 
-            action_agent1 = select_action(model_agent1, state, output_size,epsilon)
-            action_agent2 = select_action(model_agent2, state, output_size,epsilon)
+            action_agent1 = select_action(model_agent1, state, output_size,model_agent2.distilledpolicy, epsilon)
+            action_agent2 = select_action(model_agent2, state, output_size,model_agent1.distilledpolicy, epsilon)
 
             # Execute the actions and store the experiences for both agents
             action_list= [action_agent1, action_agent2]
@@ -179,31 +182,32 @@ if __name__ == "__main__":
                 
                 # Compute the current Q values for both agents
                 
-                action_probs_agent1, state_values_agent1 = model_agent1(states1, actions1)
+                action_probs_agent1, state_values_agent1 = model_agent1(states1, actions1, model_agent2.distilledpolicy)
                 #print(action_probs_agent1)
                 actions1 = actions1.unsqueeze(-1)
                 action_values_agent1 = torch.gather(action_probs_agent1, 1,actions1)
                 #print("action value:",action_values_agent1)
 
-                action_probs_agent2, state_values_agent2 = model_agent2(states2, actions2)
+                action_probs_agent2, state_values_agent2 = model_agent2(states2, actions2, model_agent1.distilledpolicy)
                 actions2 = actions2.unsqueeze(-1)
                 action_values_agent2 = torch.gather(action_probs_agent2, 1, actions2)
 
                 # Compute the target Q values for both agents
-                _, next_state_values_agent1 = model_agent1(next_states1, actions1)
+                _, next_state_values_agent1 = model_agent1(next_states1, actions1, model_agent2.distilledpolicy)
                 target_action_values_agent1 = rewards1 + (hyperparameters_agent1.gamma * next_state_values_agent1 * (1 - dones))
                 #print("Target value:",target_action_values_agent1)
 
-                _, next_state_values_agent2 = model_agent2(next_states2, actions2)
+                _, next_state_values_agent2 = model_agent2(next_states2, actions2, model_agent1.distilledpolicy)
                 target_action_values_agent2 = rewards2 + (hyperparameters_agent2.gamma * next_state_values_agent2 * (1 - dones))
                 
 
                 ####################
                 # WORLD MODEL LOSS #
                 ####################
-                for _ in range(hyperparameters_agent1.rollout_len):
-                    imagined_states1 = model_agent1.env_model(states1, actions1)
-                    imagined_states2 = model_agent2.env_model(states2, actions2)
+                ag1_action = model_agent1.distilledpolicy(states1)
+                ag2_action = model_agent2.distilledpolicy(states2)
+                imagined_states1 = model_agent1.env_model(states1, actions1, ag2_action)
+                imagined_states2 = model_agent2.env_model(states2, actions2, ag1_action)
                 world_loss_agent1 = world_model_loss_function(imagined_states1, next_states1) 
                 world_loss_agent2 = world_model_loss_function(imagined_states2, next_states2)
 
