@@ -211,7 +211,7 @@ if __name__ == "__main__":
         mean_rewards_agent1.append(episode_reward_agent1)
         mean_rewards_agent2.append(episode_reward_agent2)
 
-        #print(f"Episode {episode+1}:  Reward = {episode_reward_agent1}")
+        print(f"Episode {episode+1}:  Reward = {episode_reward_agent1}")
         if (episode + 1) % 100 == 0:
             #mean_rewards_agent1 = np.mean(mean_rewards_agent1[-100:])
             mean_reward_agent1 = sum(mean_rewards_agent1[-100:]) / min(100, len(mean_rewards_agent1))
