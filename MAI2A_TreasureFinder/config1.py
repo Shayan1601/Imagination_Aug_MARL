@@ -3,10 +3,10 @@
 
 config = {
     "conv1_out_channels": 32,
-    "conv1_filter_size": 3,
+    "conv1_filter_size": 2,
     "conv1_stride": 1,
     "conv2_out_channels": 16,
-    "conv2_filter_size": 3,
+    "conv2_filter_size": 2,
     "conv2_stride": 1,
     "fc1_out_dim": 32
 }
@@ -32,10 +32,10 @@ class Hyperparameters:
 
 # Define your hyperparameters here
 hyperparameters_agent1 = Hyperparameters(
-    num_episodes=2000,
-    batch_size=20,
-    replay_memory_size=10000,
-    rollout_len=5,
+    num_episodes=10000,
+    batch_size=80,
+    replay_memory_size=100000,
+    rollout_len=1,
     gamma=0.99,
     lr=1e-3,
     world_loss_weight = 0.5,
@@ -43,10 +43,10 @@ hyperparameters_agent1 = Hyperparameters(
 )
 
 hyperparameters_agent2 = Hyperparameters(
-    num_episodes=2000,
-    batch_size=20,
-    replay_memory_size=10000,
-    rollout_len=5,
+    num_episodes=10000,
+    batch_size=80,
+    replay_memory_size=100000,
+    rollout_len=1,
     gamma=0.99,
     lr=1e-3,
     world_loss_weight = 0.5,

@@ -21,7 +21,7 @@ from config1 import hyperparameters_agent1, hyperparameters_agent2
 
 # Create the environment
 state_dim = (7, 7, 3)
-action_dim = 4
+action_dim = 5
 
 state_dim = (state_dim[-1], *state_dim[:2])
 #state_dim = state_dim[0] * state_dim[1] * state_dim[2] #flattened
@@ -31,7 +31,7 @@ env = TreasureFinderEnv(7)
 #create distilled policy
 #distilled =DistillPolicyAgent(state_dim, action_dim)
 #create the environment model
-env_model = EnvironmentModel(state_dim, action_dim,num_agents=2)
+env_model = EnvironmentModel(state_dim, action_dim)
 
 
 
@@ -70,7 +70,7 @@ memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)
 
 
 input_size = (7, 7, 3)  # Update with the appropriate state size attribute
-output_size = 4
+output_size = 5
 epsilon = 1.0
 epsilon_decay = 0.999
 min_epsilon = 0.01
@@ -88,7 +88,7 @@ for episode in range(hyperparameters_agent1.num_episodes):
 
     for t in count():
         # Select actions based on the current policies for both agents
-        #TODO
+
         action1 = (randint(0,5),) 
         action2 = (randint(0,5),) 
 
