@@ -6,7 +6,11 @@ from config1 import config
 
 
 class EnvironmentModel(nn.Module):
+<<<<<<< Updated upstream
     def __init__(self, state_dim, action_dim, num_agents):
+=======
+    def __init__(self, state_dim1,state_dim2, action_dim1, action_dim2 ):
+>>>>>>> Stashed changes
         super(EnvironmentModel, self).__init__()
         self.state_dim = state_dim
         self.flattened_state_dim = state_dim[0] * state_dim[1] * state_dim[2]
@@ -22,6 +26,7 @@ class EnvironmentModel(nn.Module):
         conv2_stride = config["conv2_stride"]
         fc1_out_dim = config["fc1_out_dim"]
 
+<<<<<<< Updated upstream
         self.conv1 = nn.Conv2d(self.total_input_dim[0], conv1_out_channels, conv1_filter_size, conv1_stride)
         self.conv2 = nn.Conv2d(conv1_out_channels, conv2_out_channels, conv2_filter_size, conv2_stride)
         self.fc1_dim = self.compute_fc1_dim()
@@ -41,6 +46,28 @@ class EnvironmentModel(nn.Module):
         next_state = self.state_head(x)
         next_state = next_state.view(next_state.size(0), *self.state_dim)
         return next_state
+=======
+        # Assuming state_dim is (3, 3, 3) and action_dim is (4,)
+        self.conv1 = nn.Conv2d(in_channels=14, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.conv2_state1 = nn.Conv2d(in_channels=32, out_channels=3, kernel_size=3, stride=1, padding=1)
+        self.conv2_state2 = nn.Conv2d(in_channels=32, out_channels=3, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, state1, state2, action1, action2):
+        # Concatenate states and actions along the channel dimension
+        action1 = action1.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, state1.shape[2], state1.shape[3])
+        action2 = action2.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, state2.shape[2], state2.shape[3])
+
+        x = torch.cat([state1, state2, action1, action2], dim=1)
+
+        # Apply convolutional layers
+        x = torch.relu(self.conv1(x))
+
+        # Predicted next states
+        predicted_next_state1 = torch.tanh(self.conv2_state1(x))  # Assuming the output should be between -1 and 1
+        predicted_next_state2 = torch.tanh(self.conv2_state2(x))  # Assuming the output should be between -1 and 1
+
+        return predicted_next_state1, predicted_next_state2
+>>>>>>> Stashed changes
     
     def compute_fc1_dim(self):
         """

@@ -6,32 +6,65 @@ import numpy as np
 from itertools import count
 from collections import namedtuple
 from random import randint
-
 import torch.nn.functional as F
 from config1 import config
 
-
-from Treasure_Finder_gymformat import TreasureFinderEnv
 from DistillPolicy import DistillPolicyAgent
-from Environment_Model import EnvironmentModel
 from config1 import hyperparameters_agent1, hyperparameters_agent2
+from env_FindTreasure import EnvFindTreasure
 
 
 
 
+class EnvironmentModel(nn.Module):
+    def __init__(self, state_dim1,state_dim2, action_dim1, action_dim2 ):
+        super(EnvironmentModel, self).__init__()
+
+        # Assuming state_dim is (3, 3, 3) and action_dim is (4,)
+        self.conv1 = nn.Conv2d(in_channels=14, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.conv2_state1 = nn.Conv2d(in_channels=32, out_channels=3, kernel_size=3, stride=1, padding=1)
+        self.conv2_state2 = nn.Conv2d(in_channels=32, out_channels=3, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, state1, state2, action1, action2):
+        # Concatenate states and actions along the channel dimension
+        action1 = action1.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, state1.shape[2], state1.shape[3])
+        action2 = action2.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, state2.shape[2], state2.shape[3])
+
+        x = torch.cat([state1, state2, action1, action2], dim=1)
+
+        # Apply convolutional layers
+        x = torch.relu(self.conv1(x))
+
+        # Predicted next states
+        predicted_next_state1 = torch.tanh(self.conv2_state1(x))  # Assuming the output should be between -1 and 1
+        predicted_next_state2 = torch.tanh(self.conv2_state2(x))  # Assuming the output should be between -1 and 1
+
+        return predicted_next_state1, predicted_next_state2
+    
 # Create the environment
+<<<<<<< Updated upstream:MAI2A_TreasureFinder/pretrain_EnvModel.py
 state_dim = (7, 7, 3)
 action_dim = 4
 
 state_dim = (state_dim[-1], *state_dim[:2])
 #state_dim = state_dim[0] * state_dim[1] * state_dim[2] #flattened
+=======
+state_dim1 = (3, 3, 3)
+state_dim2 = (3, 3, 3)
+action_dim1 = (4,)
+action_dim2 = (4,)
+>>>>>>> Stashed changes:MAI2A_TreasureFinder/pretrain.py
 
 
-env = TreasureFinderEnv(7)
-#create distilled policy
-#distilled =DistillPolicyAgent(state_dim, action_dim)
+
+env = EnvFindTreasure(7)
+
 #create the environment model
+<<<<<<< Updated upstream:MAI2A_TreasureFinder/pretrain_EnvModel.py
 env_model = EnvironmentModel(state_dim, action_dim,num_agents=2)
+=======
+env_model = EnvironmentModel(state_dim1, state_dim2, action_dim1, action_dim2)
+>>>>>>> Stashed changes:MAI2A_TreasureFinder/pretrain.py
 
 
 
@@ -41,24 +74,27 @@ optimizer = optim.Adam(env_model.parameters(), lr=0.001)
 
 
 # Defining the replay memory for both agents
-Experience = namedtuple('Experience', ('state', 'action_list', 'next_state', 'done'))
+Experience = namedtuple('Experience', ('state1', 'state2', 'action1_one_hot', 'action2_one_hot', 'next_state1', 'next_state2'))
+
 class ReplayMemory(object):
     def __init__(self, capacity):
         self.capacity = capacity
         self.memory = []
         self.position = 0
 
-    def push(self, state, action_list, next_state, done):
+    def push(self, state1, state2, action1_one_hot, action2_one_hot, next_state1, next_state2):
         if len(self.memory) < self.capacity:
             self.memory.append(None)
-        self.memory[self.position] = Experience(state=state, action_list=action_list, next_state=next_state, done=done)
+        self.memory[self.position] = Experience(state1=state1, state2=state2, 
+                                                action1_one_hot=action1_one_hot, action2_one_hot=action2_one_hot,
+                                                next_state1=next_state1, next_state2=next_state2)
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
         batch = np.random.choice(len(self.memory), batch_size, replace=False)
         # TODO: take chunks of trajectories instead of single experiences
-        states, actions, next_states, dones = zip(*[self.memory[i] for i in batch])
-        return list(states), list(actions), list(next_states), list(dones)
+        states1, states2, actions1, actions2, next_states1, next_states2 = zip(*[self.memory[i] for i in batch])
+        return list(states1), list(states2), list(actions1), list(actions2), list(next_states1), list(next_states2)
 
     def __len__(self):
         return len(self.memory)
@@ -66,52 +102,65 @@ class ReplayMemory(object):
 # Creating replay memory for both agents
 memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)    
 
- # Main training loop
 
 
+<<<<<<< Updated upstream:MAI2A_TreasureFinder/pretrain_EnvModel.py
 input_size = (7, 7, 3)  # Update with the appropriate state size attribute
 output_size = 4
+=======
+# Main training loop
+
+input_size = (3,3,3)  # Update with the appropriate state size attribute
+output_size = (4,)
+>>>>>>> Stashed changes:MAI2A_TreasureFinder/pretrain.py
 epsilon = 1.0
 epsilon_decay = 0.999
-min_epsilon = 0.01
+min_epsilon = 0.001
 
 
 for episode in range(hyperparameters_agent1.num_episodes):
     state = env.reset()
-    state = np.swapaxes(state, 2, 0)
-    state = np.expand_dims(state, axis=0)
-    #print("reset environment:", state.shape) #(1,3,7,7)
+    state1 = env.get_agt1_obs()
+    state2 = env.get_agt2_obs()
+
+
     dones = False
-    #episode_reward_agent1 = 0
-    #episode_reward_agent2 = 0
+
     max_time_steps = 100  # Maximum number of time steps
 
     for t in count():
         # Select actions based on the current policies for both agents
+<<<<<<< Updated upstream:MAI2A_TreasureFinder/pretrain_EnvModel.py
         #TODO
         action1 = (randint(0,5),) 
         action2 = (randint(0,5),) 
+=======
+
+        action1 = (randint(0,3),) 
+        action2 = (randint(0,3),)
+        def one_hot(action_index, num_actions=4):
+            action_one_hot = np.zeros(num_actions)
+            action_one_hot[action_index] = 1
+            return action_one_hot
+        action1_one_hot = one_hot(action1[0])
+        action2_one_hot = one_hot(action2[0])
+        #action3 = str(action1 * 10 + action2).zfill(2)  #concat into int
+        action_list= [action1, action2]
+>>>>>>> Stashed changes:MAI2A_TreasureFinder/pretrain.py
 
         # Execute the actions and store the experiences for both agents
-        action_list= [action1, action2]
-        next_state1,reward, done = env.step(action_list)
+        
+        reward, done = env.step(action_list)
+        next_state1 = env.get_agt1_obs()
+        next_state2 = env.get_agt2_obs()
 
         
         
-        #print("state shape right after GET_GlobaL",next_state1.shape) --> (7,7,3)
-        next_state1 = np.transpose(next_state1, (2, 0, 1))  # Transpose dimensions to (channels, height, width)
-        next_state1 = np.expand_dims(next_state1, axis=0)  # Add an extra dimension for the batch
-        #next_state2 = next_state1
-        #next_state2 = np.transpose(next_state2, (2, 0, 1))  # Transpose dimensions to (channels, height, width)
-        #next_state2 = np.expand_dims(next_state2, axis=0)
-        #print("next state shape right after GET_GlobaL",next_state1.shape) (1,3,7,7)
+
         
         
 
-        if state.shape != (1,3,7,7) and next_state1 != (1,3,7,7):
-            print("ERROR")
-            break
-        memory_agent1.push(state, action_list, next_state1, done)
+        memory_agent1.push(state1,state2, action1_one_hot,action2_one_hot, next_state1,next_state2)
         #memory_agent2.push(state, action_agent2, reward, next_state2, done)
 
         ###############
@@ -120,62 +169,47 @@ for episode in range(hyperparameters_agent1.num_episodes):
 
         if len(memory_agent1) >= hyperparameters_agent1.batch_size:
 
-            states1, actions_list, next_state1, dones = memory_agent1.sample(hyperparameters_agent1.batch_size)
-            #states2, actions2, rewards2, next_states2, dones = memory_agent2.sample(hyperparameters_agent2.batch_size)
-            #print("state shape right after SAMPLING",states1) #-> 60
-            #print(states1.shape)
-            #Trajectory = [states1, actions_list, next_states1]
-
-            
-            for i, state in enumerate(states1):
-                #print(state.shape)
-                states1[i] = torch.Tensor(state)  # Convert to a PyTorch tensor
-            states1 = torch.cat(states1)
+            states1, states2, actions1_one_hot, actions2_one_hot, next_states1, next_states2 = memory_agent1.sample(hyperparameters_agent1.batch_size)
 
 
-            next_state_tensor1 = []
-            for next_state in next_state1:
-                next_state_tensor1.append(torch.Tensor(next_state))
+            states1 = torch.Tensor(states1)
+            states2 = torch.Tensor(states2)
+            next_states1= torch.Tensor(next_states1)
+            next_states2= torch.Tensor(next_states2)
+            actions1_one_hot = torch.Tensor(actions1_one_hot)
+            actions2_one_hot = torch.Tensor(actions2_one_hot)
+            #dones = torch.Tensor(dones)
 
-            next_states1 = torch.cat(next_state_tensor1)
 
-
-            actions_list = torch.LongTensor(actions_list)
-            #actions2 = torch.LongTensor(actions2)
-            #rewards1 = torch.Tensor(rewards1)
-            #rewards2 = torch.Tensor(rewards2)
-            dones = torch.Tensor(dones)
-
-            #print("state shape befoe feeding to model:", states1.shape, states2.shape) --> ([60,3,7,7])
             
             # Forward pass
             
-            predicted_state = env_model(states1, actions_list)
+            predicted_state1, predicted_state2 = env_model(states1, states2, actions1_one_hot, actions2_one_hot )
 
             
             # Compute the loss
-            loss = criterion(predicted_state, next_states1)
+            loss1 = criterion(predicted_state1, next_states1)
+            loss2 = criterion(predicted_state2, next_states2)
+            total_loss = loss1 + loss2
 
             optimizer.zero_grad()
-            loss.backward()
+            total_loss.backward()
             optimizer.step()
 
         # Update the states and episode rewards for both agents
-        state = next_state1
+        state1 = next_state1
+        state2 = next_state2
         
         
 
 
-        epsilon = max(epsilon * epsilon_decay, min_epsilon)
+      
         if done or t >= max_time_steps:
             break
     # Print loss for monitoring
-    print(f"Episode {episode + 1}/{hyperparameters_agent1.num_episodes}, Loss: {loss.item}")
+    print(f"Episode {episode + 1}/{hyperparameters_agent1.num_episodes}, Loss: {total_loss*1000000}")
         
 
         
 # Save the trained environment model
 torch.save(env_model.state_dict(), "env_model.pth")  
-
-
-

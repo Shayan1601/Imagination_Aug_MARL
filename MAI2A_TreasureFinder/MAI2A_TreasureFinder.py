@@ -1,5 +1,10 @@
 #Training I2A agents for the Treasure Finder multi agent environment
 #importing the dependencies
+<<<<<<< Updated upstream
+=======
+#I'm trying to pretrain and deploy the env model on this one
+
+>>>>>>> Stashed changes
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -8,7 +13,13 @@ from itertools import count
 from collections import namedtuple
 
 from Treasure_Finder_gymformat import TreasureFinderEnv
+<<<<<<< Updated upstream
 from Imagination_Core import I2A_FindTreasure
+=======
+from env_FindTreasure import EnvFindTreasure
+from Imagination_Core import I2A_FindTreasure1
+from Imagination_Core import I2A_FindTreasure2
+>>>>>>> Stashed changes
 from config1 import hyperparameters_agent1, hyperparameters_agent2
 
 # Defining the hyperparameters for both agents
@@ -41,8 +52,13 @@ class ReplayMemory(object):
 replay_memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)
 replay_memory_agent2 = ReplayMemory(hyperparameters_agent2.replay_memory_size)
 
+<<<<<<< Updated upstream
 # Function to select an action using the current policy and other agents distilled policy
 def select_action(model, state, output_size, other_agents_distilled_policies, epsilon):
+=======
+# Function to select an action using the current policy
+def select_action ( model, state1, state2, output_size, epsilon):
+>>>>>>> Stashed changes
     #if epsilon > 0.95:
     if np.random.rand() < epsilon:
         # Random action
@@ -53,6 +69,16 @@ def select_action(model, state, output_size, other_agents_distilled_policies, ep
         action_space = torch.tensor([output_size[0]], dtype=torch.float32).unsqueeze(0)
 
         with torch.no_grad():
+<<<<<<< Updated upstream
+=======
+            action_space = torch.tensor([output_size[0]], dtype=torch.float32).unsqueeze(0)
+            state1 = torch.tensor(state1, dtype=torch.float32)
+            state1 = torch.Tensor(state1).unsqueeze(0)
+            state2 = torch.tensor(state2, dtype=torch.float32)
+            state2 = torch.Tensor(state2).unsqueeze(0)
+            action_probs = model(state1 ,state2, action_space)
+            action_probs = torch.Tensor(action_probs).squeeze(1)
+>>>>>>> Stashed changes
             
             action_probs, _ = model(state, action_space, other_agents_distilled_policies)
             #print("action probe shape:", action_probs.shape)
@@ -76,8 +102,13 @@ if __name__ == "__main__":
 
 
     # Instantiate the I2A models and optimizers for both agents
+<<<<<<< Updated upstream
     model_agent1 = I2A_FindTreasure(input_size, output_size, num_agents, hyperparameters_agent1.rollout_len)
     model_agent2 = I2A_FindTreasure(input_size, output_size, num_agents, hyperparameters_agent2.rollout_len)
+=======
+    model_agent1 = I2A_FindTreasure1(input_size, output_size, hyperparameters_agent1.rollout_len)
+    model_agent2 = I2A_FindTreasure2(input_size, output_size, hyperparameters_agent2.rollout_len)
+>>>>>>> Stashed changes
     # optimizer_world_model_agent1 = optim.Adam(model_agent1.env_model.parameters(), lr=hyperparameters_agent1.lr)
     # optimizer_world_model_agent2 = optim.Adam(model_agent2.env_model.parameters(), lr=hyperparameters_agent2.lr)
     # optimizer_distilled_policy_agent1 = optim.Adam(model_agent1.distilledpolicy.parameters(), lr=hyperparameters_agent1.lr)
@@ -91,7 +122,16 @@ if __name__ == "__main__":
     # Initialize the replay memory for both agents
     memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)
     memory_agent2 = ReplayMemory(hyperparameters_agent2.replay_memory_size)
+<<<<<<< Updated upstream
 
+=======
+    
+    #Target network for improving the training of the agents
+    target_network1 = I2A_FindTreasure1(input_size, output_size, hyperparameters_agent1.rollout_len)
+    target_network2 = I2A_FindTreasure2(input_size, output_size, hyperparameters_agent2.rollout_len)
+    update_target_frequency = 5    
+    
+>>>>>>> Stashed changes
     # Main training loop
 
 
@@ -112,8 +152,13 @@ if __name__ == "__main__":
         for t in count():
             # Select actions based on the current policies for both agents
 
+<<<<<<< Updated upstream
             action_agent1 = select_action(model_agent1, state, output_size,model_agent2.distilledpolicy, epsilon)
             action_agent2 = select_action(model_agent2, state, output_size,model_agent1.distilledpolicy, epsilon)
+=======
+            action_agent1 = select_action(model_agent1, state1, state2, output_size,epsilon)
+            action_agent2 = select_action(model_agent2, state1, state2, output_size,epsilon)
+>>>>>>> Stashed changes
 
             # Execute the actions and store the experiences for both agents
             action_list= [action_agent1, action_agent2]
@@ -182,6 +227,7 @@ if __name__ == "__main__":
                 
                 # Compute the current Q values for both agents
                 
+<<<<<<< Updated upstream
                 action_probs_agent1, state_values_agent1 = model_agent1(states1, actions1, model_agent2.distilledpolicy)
                 #print(action_probs_agent1)
                 actions1 = actions1.unsqueeze(-1)
@@ -199,6 +245,26 @@ if __name__ == "__main__":
 
                 _, next_state_values_agent2 = model_agent2(next_states2, actions2, model_agent1.distilledpolicy)
                 target_action_values_agent2 = rewards2 + (hyperparameters_agent2.gamma * next_state_values_agent2 * (1 - dones))
+=======
+                action_probs_agent1= model_agent1(states1,states2, actions2)
+                actions11 = actions1.unsqueeze(-1)
+                      
+                action_values_agent1 = torch.gather(action_probs_agent1, 1,actions11)
+                               
+                next_q_values1 = target_network1(next_states1, next_states2, actions2).max(1)[0].detach()
+                target_q_values1 = rewards1 + hyperparameters_agent1.gamma * next_q_values1 * (1 - dones)
+                target_q_values1 = target_q_values1.unsqueeze(1)
+                
+
+                action_probs_agent2 = model_agent2(states1, states2, actions1)
+                actions22 = actions2.unsqueeze(-1)
+                                    
+                action_values_agent2 = torch.gather(action_probs_agent2, 1, actions22)
+                
+                next_q_values2 = target_network2(next_states1, next_states2, actions1).max(1)[0].detach()
+                target_q_values2 = rewards2 + hyperparameters_agent2.gamma * next_q_values2 * (1 - dones)
+                target_q_values2 = target_q_values2.unsqueeze(1)
+>>>>>>> Stashed changes
                 
 
                 ####################
@@ -252,6 +318,11 @@ if __name__ == "__main__":
         mean_rewards_agent1.append(episode_reward_agent1)
         mean_rewards_agent2.append(episode_reward_agent2)
 
+<<<<<<< Updated upstream
+=======
+        #print(f"Episode {episode+1}:  Reward = {episode_reward_agent1}")
+        
+>>>>>>> Stashed changes
         if (episode + 1) % 100 == 0:
             mean_reward_agent1 = sum(mean_rewards_agent1[-100:]) / min(100, len(mean_rewards_agent1))
             mean_reward_agent2 = sum(mean_rewards_agent2[-100:]) / min(100, len(mean_rewards_agent2))
