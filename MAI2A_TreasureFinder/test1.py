@@ -1,5 +1,6 @@
 from env_FindTreasure import EnvFindTreasure
-from Imagination_Core import I2A_FindTreasure
+from Imagination_Core import I2A_FindTreasure1
+from Imagination_Core import I2A_FindTreasure2
 
 from config1 import hyperparameters_agent1, hyperparameters_agent2
 import torch
@@ -17,8 +18,8 @@ discount_factor = 0.99
 learning_rate = 0.001
 
 # Load trained agent models
-agent1 = I2A_FindTreasure( input_size, output_size, hyperparameters_agent1.rollout_len)  # Replace YourAgentClass with the actual class of your agent
-agent2 = I2A_FindTreasure( input_size, output_size, hyperparameters_agent2.rollout_len)
+agent1 = I2A_FindTreasure1( input_size, output_size, hyperparameters_agent1.rollout_len)  # Replace YourAgentClass with the actual class of your agent
+agent2 = I2A_FindTreasure2( input_size, output_size, hyperparameters_agent2.rollout_len)
 
 # Load the state dict of the trained models
 agent1.load_state_dict(torch.load('agent_1_model.pth'))
@@ -29,7 +30,8 @@ agent1.eval()
 agent2.eval()
 
 # Function to select an action using the current policy
-def select_action(model, state, output_size, epsilon):
+# Function to select an action using the current policy
+def select_action ( model, state1, state2, output_size, epsilon):
     #if epsilon > 0.95:
     if np.random.rand() < epsilon:
         # Random action
@@ -38,13 +40,15 @@ def select_action(model, state, output_size, epsilon):
         # Use I2A module to produce action
         with torch.no_grad():
             action_space = torch.tensor([output_size[0]], dtype=torch.float32).unsqueeze(0)
-            state = torch.tensor(state, dtype=torch.float32)
-            state = torch.Tensor(state).unsqueeze(0)
-            action_probs = model(state, action_space)
+            state1 = torch.tensor(state1, dtype=torch.float32)
+            state1 = torch.Tensor(state1).unsqueeze(0)
+            state2 = torch.tensor(state2, dtype=torch.float32)
+            state2 = torch.Tensor(state2).unsqueeze(0)
+            action_probs = model(state1 ,state2, action_space)
             action_probs = torch.Tensor(action_probs).squeeze(1)
             
             action = np.array([int(torch.argmax(action_probs, dim=1).item())], dtype=np.int64)
-    return action.item() 
+    return action.item()
             
 max_iter = 1000
 
@@ -54,8 +58,8 @@ for i in range(max_iter):
     env.render()
 
     # Replace random actions with actions predicted by the agents
-    action1 = select_action(agent1, env.get_agt1_obs(),(4,),  epsilon=0)  # Set epsilon to 0 for greedy actions
-    action2 = select_action(agent2, env.get_agt2_obs(),(4,), epsilon=0)
+    action1 = select_action(agent1, env.get_agt1_obs(),env.get_agt2_obs(), (4,),  epsilon=0)  # Set epsilon to 0 for greedy actions
+    action2 = select_action(agent2, env.get_agt1_obs(), env.get_agt2_obs(),(4,), epsilon=0)
     action_list = [action1, action2]
 
     print()
