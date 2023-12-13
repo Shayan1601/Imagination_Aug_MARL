@@ -42,29 +42,17 @@ class EnvironmentModel(nn.Module):
         return predicted_next_state1, predicted_next_state2
     
 # Create the environment
-<<<<<<< Updated upstream:MAI2A_TreasureFinder/pretrain_EnvModel.py
-state_dim = (7, 7, 3)
-action_dim = 4
-
-state_dim = (state_dim[-1], *state_dim[:2])
-#state_dim = state_dim[0] * state_dim[1] * state_dim[2] #flattened
-=======
 state_dim1 = (3, 3, 3)
 state_dim2 = (3, 3, 3)
 action_dim1 = (4,)
 action_dim2 = (4,)
->>>>>>> Stashed changes:MAI2A_TreasureFinder/pretrain.py
 
 
 
 env = EnvFindTreasure(7)
 
 #create the environment model
-<<<<<<< Updated upstream:MAI2A_TreasureFinder/pretrain_EnvModel.py
-env_model = EnvironmentModel(state_dim, action_dim,num_agents=2)
-=======
 env_model = EnvironmentModel(state_dim1, state_dim2, action_dim1, action_dim2)
->>>>>>> Stashed changes:MAI2A_TreasureFinder/pretrain.py
 
 
 
@@ -104,15 +92,10 @@ memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)
 
 
 
-<<<<<<< Updated upstream:MAI2A_TreasureFinder/pretrain_EnvModel.py
-input_size = (7, 7, 3)  # Update with the appropriate state size attribute
-output_size = 4
-=======
 # Main training loop
 
 input_size = (3,3,3)  # Update with the appropriate state size attribute
 output_size = (4,)
->>>>>>> Stashed changes:MAI2A_TreasureFinder/pretrain.py
 epsilon = 1.0
 epsilon_decay = 0.999
 min_epsilon = 0.001
@@ -130,11 +113,6 @@ for episode in range(hyperparameters_agent1.num_episodes):
 
     for t in count():
         # Select actions based on the current policies for both agents
-<<<<<<< Updated upstream:MAI2A_TreasureFinder/pretrain_EnvModel.py
-        #TODO
-        action1 = (randint(0,5),) 
-        action2 = (randint(0,5),) 
-=======
 
         action1 = (randint(0,3),) 
         action2 = (randint(0,3),)
@@ -146,7 +124,6 @@ for episode in range(hyperparameters_agent1.num_episodes):
         action2_one_hot = one_hot(action2[0])
         #action3 = str(action1 * 10 + action2).zfill(2)  #concat into int
         action_list= [action1, action2]
->>>>>>> Stashed changes:MAI2A_TreasureFinder/pretrain.py
 
         # Execute the actions and store the experiences for both agents
         
