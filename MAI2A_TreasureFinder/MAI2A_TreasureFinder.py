@@ -61,7 +61,7 @@ def select_action ( model, state1, state2, output_size, epsilon):
             state2 = torch.tensor(state2, dtype=torch.float32)
             state2 = torch.Tensor(state2).unsqueeze(0)
             action_probs = model(state1 ,state2, action_space)
-            action_probs = torch.Tensor(action_probs).squeeze(1)
+            #action_probs = torch.Tensor(action_probs).squeeze(1)
             
             action = np.array([int(torch.argmax(action_probs, dim=1).item())], dtype=np.int64)
     return action.item() 
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     #Target network for improving the training of the agents
     target_network1 = I2A_FindTreasure1(input_size, output_size, hyperparameters_agent1.rollout_len)
     target_network2 = I2A_FindTreasure2(input_size, output_size, hyperparameters_agent2.rollout_len)
-    update_target_frequency = 5    
+    update_target_frequency = 7    
     
     # Main training loop
 
@@ -114,7 +114,7 @@ if __name__ == "__main__":
         done = False
         episode_reward_agent1 = 0
         episode_reward_agent2 = 0
-        max_time_steps = 100  # Maximum number of time steps
+        max_time_steps = 50  # Maximum number of time steps
 
         for t in count():
             # Select actions based on the current policies for both agents

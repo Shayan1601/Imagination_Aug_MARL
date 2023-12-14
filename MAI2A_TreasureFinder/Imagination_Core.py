@@ -57,10 +57,7 @@ class I2A_FindTreasure1(nn.Module):
 
     def forward(self, state1, state2, action_space2):
 
-        # def one_hot(action_index, num_actions=4):
-        #     action_one_hot = np.zeros(num_actions)
-        #     action_one_hot[action_index] = 1
-        #     return action_one_hot
+
         
         def one_hot(action_indices, num_actions=4):
             # Ensure action_indices are within bounds
@@ -158,10 +155,6 @@ class I2A_FindTreasure2(nn.Module):
     def forward(self, state1, state2, action_space1):
         
 
-        # def one_hot(action_index, num_actions=4):
-        #     action_one_hot = np.zeros(num_actions)
-        #     action_one_hot[action_index] = 1
-        #     return action_one_hot
                 
         def one_hot(action_indices, num_actions=4):
             # Ensure action_indices are within bounds

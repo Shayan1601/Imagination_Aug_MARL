@@ -29,7 +29,7 @@ agent2.load_state_dict(torch.load('agent_2_model.pth'))
 agent1.eval()
 agent2.eval()
 
-# Function to select an action using the current policy
+
 # Function to select an action using the current policy
 def select_action ( model, state1, state2, output_size, epsilon):
     #if epsilon > 0.95:
@@ -45,7 +45,7 @@ def select_action ( model, state1, state2, output_size, epsilon):
             state2 = torch.tensor(state2, dtype=torch.float32)
             state2 = torch.Tensor(state2).unsqueeze(0)
             action_probs = model(state1 ,state2, action_space)
-            action_probs = torch.Tensor(action_probs).squeeze(1)
+            #action_probs = torch.Tensor(action_probs).squeeze(1)
             
             action = np.array([int(torch.argmax(action_probs, dim=1).item())], dtype=np.int64)
     return action.item()
