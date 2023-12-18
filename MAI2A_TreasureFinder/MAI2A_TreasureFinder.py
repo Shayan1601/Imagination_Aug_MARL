@@ -97,7 +97,7 @@ if __name__ == "__main__":
     #Target network for improving the training of the agents
     target_network1 = I2A_FindTreasure1(input_size, output_size, hyperparameters_agent1.rollout_len)
     target_network2 = I2A_FindTreasure2(input_size, output_size, hyperparameters_agent2.rollout_len)
-    update_target_frequency = 7    
+    update_target_frequency = 7
     
     # Main training loop
 
@@ -217,8 +217,11 @@ if __name__ == "__main__":
 
         #print(f"Episode {episode+1}:  Reward = {episode_reward_agent1}")
         
+        # if (episode + 1) % 100 == 0:
+        #     mean_reward_agent1 = sum(mean_rewards_agent1[-100:]) / min(100, len(mean_rewards_agent1))
+        #     print(f"Episode {episode+1}: Mean Reward = {mean_reward_agent1}")
         if (episode + 1) % 100 == 0:
-            mean_reward_agent1 = sum(mean_rewards_agent1[-100:]) / min(100, len(mean_rewards_agent1))
+            mean_reward_agent1 = sum(mean_rewards_agent1) / len(mean_rewards_agent1)
             print(f"Episode {episode+1}: Mean Reward = {mean_reward_agent1}")
             
     # Calculate total mean rewards
