@@ -12,7 +12,8 @@ class I2A_FindTreasure1(nn.Module):
         super(I2A_FindTreasure1, self).__init__()
    
         self.state_dim = state_dim
-        self.flattened_state_dim = state_dim[0] * state_dim[1] * state_dim[2]
+        #self.flattened_state_dim = state_dim[0] * state_dim[1] * state_dim[2]
+        self.flattened_state_dim = state_dim
   
         self.action_dim = action_dim
         self.rollout_len = rollout_len
@@ -40,6 +41,7 @@ class I2A_FindTreasure1(nn.Module):
 
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
         self.flatten = nn.Flatten()
+        #self.gru = nn.GRU(input_size=32 * 3 * 3, hidden_size=288, num_layers=1, batch_first=True)
         self.fc1 = nn.Linear(288, action_dim[0])  # Update the input size for fc1
         
 
@@ -109,7 +111,8 @@ class I2A_FindTreasure2(nn.Module):
         super(I2A_FindTreasure2, self).__init__()
    
         self.state_dim = state_dim
-        self.flattened_state_dim = state_dim[0] * state_dim[1] * state_dim[2]
+        #self.flattened_state_dim = state_dim[0] * state_dim[1] * state_dim[2]
+        self.flattened_state_dim = state_dim
   
         self.action_dim = action_dim
         self.rollout_len = rollout_len
@@ -137,6 +140,7 @@ class I2A_FindTreasure2(nn.Module):
 
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
         self.flatten = nn.Flatten()
+        #self.gru = nn.GRU(input_size=32 * 3 * 3, hidden_size=288, num_layers=1, batch_first=True)
         self.fc1 = nn.Linear(288, action_dim[0])  # Update the input size for fc1
         
 
