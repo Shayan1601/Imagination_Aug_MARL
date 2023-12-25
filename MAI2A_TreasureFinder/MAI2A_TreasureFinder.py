@@ -9,6 +9,7 @@ import numpy as np
 from itertools import count
 from collections import namedtuple
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
 
 from Treasure_Finder_gymformat import TreasureFinderEnv
 from env_FindTreasure import EnvFindTreasure
@@ -103,7 +104,7 @@ if __name__ == "__main__":
 
     mean_rewards_agent1 = []  # To store mean rewards for Agent 1
     mean_rewards_agent2 = []  # To store mean rewards for Agent 2
-
+    mean_R_Plot = []
 
     for episode in range(hyperparameters_agent1.num_episodes):
         state = env.reset()
@@ -217,17 +218,25 @@ if __name__ == "__main__":
 
         #print(f"Episode {episode+1}:  Reward = {episode_reward_agent1}")
         
-        # if (episode + 1) % 100 == 0:
-        #     mean_reward_agent1 = sum(mean_rewards_agent1[-100:]) / min(100, len(mean_rewards_agent1))
-        #     print(f"Episode {episode+1}: Mean Reward = {mean_reward_agent1}")
+        mean_reward_agent1 = sum(mean_rewards_agent1) / len(mean_rewards_agent1)
+        mean_R_Plot. append(mean_reward_agent1)
         if (episode + 1) % 100 == 0:
-            mean_reward_agent1 = sum(mean_rewards_agent1) / len(mean_rewards_agent1)
+            
             print(f"Episode {episode+1}: Mean Reward = {mean_reward_agent1}")
             
     # Calculate total mean rewards
     total_mean_reward_agent1 = sum(mean_rewards_agent1) / len(mean_rewards_agent1) 
     # Print total mean rewards
     print(f"Total Mean Reward after {hyperparameters_agent1.num_episodes} episodes : {total_mean_reward_agent1}") 
+    
+    # Plotting
+    episodes = list(range(1, hyperparameters_agent1.num_episodes + 1, 1))
+    plt.plot(episodes, mean_R_Plot, label='Mean Reward')
+    plt.xlabel('Episodes')
+    plt.ylabel('Mean Reward')
+    plt.title('Mean Reward over Episodes')
+    plt.legend()
+    plt.show()
           
     # Save the agents after training
     torch.save(model_agent1.state_dict(), f'agent_{1}_model.pth') 

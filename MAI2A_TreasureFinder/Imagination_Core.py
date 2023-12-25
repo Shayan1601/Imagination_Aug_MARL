@@ -39,15 +39,17 @@ class I2A_FindTreasure1(nn.Module):
 
         # # Define the policy head
 
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(in_channels=6, out_channels=64, kernel_size=5, stride=1, padding=1)
+        #self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1)
         self.flatten = nn.Flatten()
         #self.gru = nn.GRU(input_size=32 * 3 * 3, hidden_size=288, num_layers=1, batch_first=True)
-        self.fc1 = nn.Linear(288, action_dim[0])  # Update the input size for fc1
+        self.fc1 = nn.Linear(64, action_dim[0])  # Update the input size for fc1
         
 
         # Define the policy head
         self.policy_head = nn.Sequential(
             self.conv1,
+            #self.conv2,
             self.flatten,
             self.fc1,
             
@@ -91,10 +93,10 @@ class I2A_FindTreasure1(nn.Module):
 
             flattened_state= next_state
             imagined_states.append(flattened_state)
-            state1 = next_state
+            #state1 = next_state
 
         # Concatenate the imagined states along the last dimension 
-        imagined_states = torch.cat(imagined_states, dim=0)
+        imagined_states = torch.cat((state1, next_state), dim=1)
        
         
         #encoded_imagined_states = self.imagination(imagined_states)
@@ -138,15 +140,17 @@ class I2A_FindTreasure2(nn.Module):
 
         # # Define the policy head
 
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(in_channels=6, out_channels=64, kernel_size=5, stride=1, padding=1)
+        #self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1)
         self.flatten = nn.Flatten()
         #self.gru = nn.GRU(input_size=32 * 3 * 3, hidden_size=288, num_layers=1, batch_first=True)
-        self.fc1 = nn.Linear(288, action_dim[0])  # Update the input size for fc1
+        self.fc1 = nn.Linear(64, action_dim[0])  # Update the input size for fc1
         
 
         # Define the policy head
         self.policy_head = nn.Sequential(
             self.conv1,
+            #self.conv2,
             self.flatten,
             self.fc1,
             
@@ -189,10 +193,12 @@ class I2A_FindTreasure2(nn.Module):
 
             flattened_state= next_state
             imagined_states.append(flattened_state)
-            state1 = next_state
+            #state2 = next_state
 
         # Concatenate the imagined states along the last dimension 
-        imagined_states = torch.cat(imagined_states, dim=0)
+        imagined_states = torch.cat((state2, next_state), dim=1)
+        
+
        
         
         #encoded_imagined_states = self.imagination(imagined_states)
