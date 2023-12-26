@@ -39,11 +39,12 @@ class I2A_FindTreasure1(nn.Module):
 
         # # Define the policy head
 
-        self.conv1 = nn.Conv2d(in_channels=6, out_channels=64, kernel_size=5, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(in_channels=6, out_channels=128, kernel_size=5, stride=1, padding=1)
         #self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1)
         self.flatten = nn.Flatten()
         #self.gru = nn.GRU(input_size=32 * 3 * 3, hidden_size=288, num_layers=1, batch_first=True)
-        self.fc1 = nn.Linear(64, action_dim[0])  # Update the input size for fc1
+        self.fc1 = nn.Linear(128, 32)  # Update the input size for fc1
+        self.fc2 = nn.Linear(32, action_dim[0])
         
 
         # Define the policy head
@@ -52,7 +53,7 @@ class I2A_FindTreasure1(nn.Module):
             #self.conv2,
             self.flatten,
             self.fc1,
-            
+            self.fc2,
         )
 
 
@@ -140,12 +141,12 @@ class I2A_FindTreasure2(nn.Module):
 
         # # Define the policy head
 
-        self.conv1 = nn.Conv2d(in_channels=6, out_channels=64, kernel_size=5, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(in_channels=6, out_channels=128, kernel_size=5, stride=1, padding=1)
         #self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1)
         self.flatten = nn.Flatten()
         #self.gru = nn.GRU(input_size=32 * 3 * 3, hidden_size=288, num_layers=1, batch_first=True)
-        self.fc1 = nn.Linear(64, action_dim[0])  # Update the input size for fc1
-        
+        self.fc1 = nn.Linear(128, 256)  # Update the input size for fc1
+        self.fc2 = nn.Linear(256, action_dim[0])
 
         # Define the policy head
         self.policy_head = nn.Sequential(
@@ -153,6 +154,7 @@ class I2A_FindTreasure2(nn.Module):
             #self.conv2,
             self.flatten,
             self.fc1,
+            self.fc2,
             
         )
 

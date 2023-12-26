@@ -37,7 +37,7 @@ hyperparameters_agent1 = Hyperparameters(
     replay_memory_size=100000,
     rollout_len=1,
     gamma=0.99,
-    lr=1e-3,
+    lr=1e-4,
     world_loss_weight = 0.5,
     distil_policy_loss_weight=0.5
 )
@@ -48,7 +48,7 @@ hyperparameters_agent2 = Hyperparameters(
     replay_memory_size=100000,
     rollout_len=1,
     gamma=0.99,
-    lr=1e-3,
+    lr=1e-4,
     world_loss_weight = 0.5,
     distil_policy_loss_weight=0.5
 )
