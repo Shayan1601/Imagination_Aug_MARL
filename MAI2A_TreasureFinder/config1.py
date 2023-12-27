@@ -32,7 +32,7 @@ class Hyperparameters:
 
 # Define your hyperparameters here
 hyperparameters_agent1 = Hyperparameters(
-    num_episodes=10000,
+    num_episodes=20000,
     batch_size=80,
     replay_memory_size=100000,
     rollout_len=1,
