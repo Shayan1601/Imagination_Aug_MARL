@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 
 from Treasure_Finder_gymformat import TreasureFinderEnv
 from env_FindTreasure import EnvFindTreasure
-from Imagination_Core import I2A_FindTreasure1
-from Imagination_Core import I2A_FindTreasure2
+from Imagination_Core import I2A_FindTreasure
+
 from config1 import hyperparameters_agent1, hyperparameters_agent2
 
 
@@ -80,8 +80,8 @@ if __name__ == "__main__":
 
 
     # Instantiate the I2A models and optimizers for both agents
-    model_agent1 = I2A_FindTreasure1(input_size, output_size, hyperparameters_agent1.rollout_len)
-    model_agent2 = I2A_FindTreasure2(input_size, output_size, hyperparameters_agent2.rollout_len)
+    model_agent1 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent1.rollout_len, agent_mode=1)
+    model_agent2 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent2.rollout_len, agent_mode=2)
     # optimizer_world_model_agent1 = optim.Adam(model_agent1.env_model.parameters(), lr=hyperparameters_agent1.lr)
     # optimizer_world_model_agent2 = optim.Adam(model_agent2.env_model.parameters(), lr=hyperparameters_agent2.lr)
     # optimizer_distilled_policy_agent1 = optim.Adam(model_agent1.distilledpolicy.parameters(), lr=hyperparameters_agent1.lr)
@@ -96,8 +96,8 @@ if __name__ == "__main__":
     memory_agent2 = ReplayMemory(hyperparameters_agent2.replay_memory_size)
     
     #Target network for improving the training of the agents
-    target_network1 = I2A_FindTreasure1(input_size, output_size, hyperparameters_agent1.rollout_len)
-    target_network2 = I2A_FindTreasure2(input_size, output_size, hyperparameters_agent2.rollout_len)
+    target_network1 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent1.rollout_len, agent_mode=1)
+    target_network2 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent2.rollout_len, agent_mode=2)
     update_target_frequency = 7
     
     # Main training loop
