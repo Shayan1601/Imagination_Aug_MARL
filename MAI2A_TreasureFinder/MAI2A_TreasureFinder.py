@@ -155,7 +155,7 @@ if __name__ == "__main__":
                 rewards1 = torch.Tensor(rewards1)
                 rewards2 = torch.Tensor(rewards2)
                 dones = torch.Tensor(dones)
-
+ 
                 
                 # Compute the current Q values for both agents
                 

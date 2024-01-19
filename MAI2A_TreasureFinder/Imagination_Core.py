@@ -36,7 +36,7 @@ class I2A_FindTreasure(nn.Module):
         self.model_free_agent = ModelFreeAgent(self.state_dim, self.action_dim)
 
         # Define the policy head
-        self.conv1 = nn.Conv2d(in_channels=6, out_channels=128, kernel_size=5, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(in_channels= (rollout_len+1)*3, out_channels=128, kernel_size=5, stride=1, padding=1)
         self.flatten = nn.Flatten()
         self.fc1 = nn.Linear(128, 256)
         self.fc2 = nn.Linear(256, action_dim[0])
@@ -50,43 +50,57 @@ class I2A_FindTreasure(nn.Module):
         )
 
         # Define the distilled policy
-        self.distilledpolicy = DistillPolicyAgent(self.flattened_state_dim, self.action_dim)
+        self.distilledpolicy1 = DistillPolicyAgent(self.flattened_state_dim, self.action_dim)
+        self.distilledpolicy2 = DistillPolicyAgent(self.flattened_state_dim, self.action_dim)
 
     def forward(self, state1, state2, action_space):
-        def one_hot(action_indices, num_actions=4):
-            action_indices = action_indices.long() % num_actions
-            batch_size = action_indices.size(0)
-            action_one_hots = torch.zeros(batch_size, num_actions)
-            action_indices = action_indices.view(batch_size, 1)
-            action_one_hots.scatter_(1, action_indices, 1)
-            return action_one_hots
+        # def one_hot(action_indices, num_actions=4):
+        #     action_indices = action_indices.long() % num_actions
+        #     batch_size = action_indices.size(0)
+        #     action_one_hots = torch.zeros(batch_size, num_actions)
+        #     action_indices = action_indices.view(batch_size, 1)
+        #     action_one_hots.scatter_(1, action_indices, 1)
+        #     return action_one_hots
 
-        action_space = one_hot(action_space)
+        # action_space = one_hot(action_space)
 
-        if self.agent_mode == 1:
-            flattened_state = state1
+        # if self.agent_mode == 1:
+        #     flattened_state = state1
+        # elif self.agent_mode == 2:
+        #     flattened_state = state2
+        # else:
+        #     raise ValueError("Invalid agent mode. Use 1 or 2.")
+
+        
+        if self.agent_mode ==1:    
+            imagined_states = [state1]
         elif self.agent_mode == 2:
-            flattened_state = state2
-        else:
-            raise ValueError("Invalid agent mode. Use 1 or 2.")
+            imagined_states = [state2]
 
-        imagined_states = []
         for _ in range(self.rollout_len):
-            action = self.distilledpolicy(flattened_state)
+            action1 = self.distilledpolicy1(state1)
+            action2 = self.distilledpolicy1(state2)
 
-            if self.agent_mode == 1:
-                _, next_state = self.env_model(state1, state2, action, action_space)
+            # if self.agent_mode == 1:
+            #     next_state, _ = self.env_model(state1, state2, action, action_space)
+            # elif self.agent_mode == 2:
+            #     _, next_state = self.env_model(state1, state2, action_space, action)
+            # else:
+            #     raise ValueError("Invalid agent mode. Use 1 or 2.")
+            next_state1, next_state2 = self.env_model(state1, state2, action1, action2)
+            if self.agent_mode ==1:
+                imagined_states.append(next_state1)
             elif self.agent_mode == 2:
-                _, next_state = self.env_model(state1, state2, action_space, action)
-            else:
-                raise ValueError("Invalid agent mode. Use 1 or 2.")
+                imagined_states.append(next_state2)
+            state1 = next_state1
+            state2 = next_state2
 
-            flattened_state = next_state
-            imagined_states.append(flattened_state)
+            
+            
 
-        imagined_states = torch.cat((state1, next_state), dim=1)
+        imagined_obs = torch.cat( imagined_states, dim=1)
 
-        encoded_imagined_states = imagined_states
+        encoded_imagined_states = imagined_obs
         action_prob = self.policy_head(encoded_imagined_states)
 
         return action_prob
