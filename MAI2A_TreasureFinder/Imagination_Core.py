@@ -50,10 +50,10 @@ class I2A_FindTreasure(nn.Module):
         )
 
         # Define the distilled policy
-        self.distilledpolicy1 = DistillPolicyAgent(self.flattened_state_dim, self.action_dim)
-        self.distilledpolicy2 = DistillPolicyAgent(self.flattened_state_dim, self.action_dim)
+        self.distilledpolicy = DistillPolicyAgent(self.flattened_state_dim, self.action_dim)
+        #self.distilledpolicy2 = DistillPolicyAgent(self.flattened_state_dim, self.action_dim)
 
-    def forward(self, state1, state2, action_space):
+    def forward(self, state1, state2, distilledpolicyp):
         # def one_hot(action_indices, num_actions=4):
         #     action_indices = action_indices.long() % num_actions
         #     batch_size = action_indices.size(0)
@@ -76,10 +76,22 @@ class I2A_FindTreasure(nn.Module):
             imagined_states = [state1]
         elif self.agent_mode == 2:
             imagined_states = [state2]
+        
+        # # Set requires_grad to False for all parameters in the other agent's distilled policy
+        # for param in distilledpolicyp.parameters():
+        #     param.requires_grad = False
+        # for param in self.distilledpolicy.parameters():
+        #     param.requires_grad = True
 
         for _ in range(self.rollout_len):
-            action1 = self.distilledpolicy1(state1)
-            action2 = self.distilledpolicy1(state2)
+            
+            
+            if self.agent_mode ==1:    
+                action1 = self.distilledpolicy(state1)
+                action2 = distilledpolicyp(state2)
+            elif self.agent_mode == 2:
+                action1 = distilledpolicyp(state1)
+                action2 = self.distilledpolicy(state2)
 
             # if self.agent_mode == 1:
             #     next_state, _ = self.env_model(state1, state2, action, action_space)

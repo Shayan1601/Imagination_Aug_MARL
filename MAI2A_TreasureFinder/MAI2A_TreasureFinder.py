@@ -48,20 +48,20 @@ replay_memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)
 replay_memory_agent2 = ReplayMemory(hyperparameters_agent2.replay_memory_size)
 
 # Function to select an action using the current policy
-def select_action ( model, state1, state2, output_size, epsilon):
+def select_action ( model, state1, state2, distilledpolicy, epsilon):
     #if epsilon > 0.95:
     if np.random.rand() < epsilon:
         # Random action
-        action = torch.randint(0, output_size[0], (1,))
+        action = torch.randint(0, 4, (1,))
     else:
         # Use I2A module to produce action
         with torch.no_grad():
-            action_space = torch.tensor([output_size[0]], dtype=torch.float32).unsqueeze(0)
+            #action_space = torch.tensor([output_size[0]], dtype=torch.float32).unsqueeze(0)
             state1 = torch.tensor(state1, dtype=torch.float32)
             state1 = torch.Tensor(state1).unsqueeze(0)
             state2 = torch.tensor(state2, dtype=torch.float32)
             state2 = torch.Tensor(state2).unsqueeze(0)
-            action_probs = model(state1 ,state2, action_space)
+            action_probs = model(state1 ,state2, distilledpolicy)
             #action_probs = torch.Tensor(action_probs).squeeze(1)
             
             action = np.array([int(torch.argmax(action_probs, dim=1).item())], dtype=np.int64)
@@ -120,8 +120,8 @@ if __name__ == "__main__":
         for t in count():
             # Select actions based on the current policies for both agents
 
-            action_agent1 = select_action(model_agent1, state1, state2, output_size,epsilon)
-            action_agent2 = select_action(model_agent2, state1, state2, output_size,epsilon)
+            action_agent1 = select_action(model_agent1, state1, state2, model_agent2.distilledpolicy,epsilon)
+            action_agent2 = select_action(model_agent2, state1, state2, model_agent1.distilledpolicy,epsilon)
 
             # Execute the actions and store the experiences for both agents
             action_list= [action_agent1, action_agent2]
@@ -159,22 +159,22 @@ if __name__ == "__main__":
                 
                 # Compute the current Q values for both agents
                 
-                action_probs_agent1= model_agent1(states1,states2, actions2)
+                action_probs_agent1= model_agent1(states1,states2, model_agent2.distilledpolicy)
                 actions11 = actions1.unsqueeze(-1)
                       
                 action_values_agent1 = torch.gather(action_probs_agent1, 1,actions11)
                                
-                next_q_values1 = target_network1(next_states1, next_states2, actions2).max(1)[0].detach()
+                next_q_values1 = target_network1(next_states1, next_states2, model_agent2.distilledpolicy).max(1)[0].detach()
                 target_q_values1 = rewards1 + hyperparameters_agent1.gamma * next_q_values1 * (1 - dones)
                 target_q_values1 = target_q_values1.unsqueeze(1)
                 
 
-                action_probs_agent2 = model_agent2(states1, states2, actions1)
+                action_probs_agent2 = model_agent2(states1, states2, model_agent1.distilledpolicy)
                 actions22 = actions2.unsqueeze(-1)
                                     
                 action_values_agent2 = torch.gather(action_probs_agent2, 1, actions22)
                 
-                next_q_values2 = target_network2(next_states1, next_states2, actions1).max(1)[0].detach()
+                next_q_values2 = target_network2(next_states1, next_states2, model_agent1.distilledpolicy).max(1)[0].detach()
                 target_q_values2 = rewards2 + hyperparameters_agent2.gamma * next_q_values2 * (1 - dones)
                 target_q_values2 = target_q_values2.unsqueeze(1)
                 
@@ -185,10 +185,21 @@ if __name__ == "__main__":
                 loss_agent2 = nn.functional.smooth_l1_loss(action_values_agent2, target_q_values2)
                 
                 # Backpropagation and optimization
+                    # Set requires_grad to False for all parameters in the other agent's distilled policy
+                for param in model_agent2.distilledpolicy.parameters():
+                    param.requires_grad = True
+                for param in model_agent1.distilledpolicy.parameters():
+                    param.requires_grad = False
                 optimizer_agent1.zero_grad()
                 loss_agent1.backward()
                 optimizer_agent1.step()
-
+               
+                    # Set requires_grad to False for all parameters in the other agent's distilled policy
+                for param in model_agent1.distilledpolicy.parameters():
+                    param.requires_grad = True
+                for param in model_agent2.distilledpolicy.parameters():
+                    param.requires_grad = False
+                
                 optimizer_agent2.zero_grad()
                 loss_agent2.backward()
                 optimizer_agent2.step()
