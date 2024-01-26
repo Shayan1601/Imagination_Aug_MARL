@@ -1,6 +1,6 @@
 #Training I2A agents for the Treasure Finder multi agent environment
 #importing the dependencies
-#I'm trying to pretrain and deploy the env model on this one
+#env model pre-trained
 
 import torch
 import torch.nn as nn
