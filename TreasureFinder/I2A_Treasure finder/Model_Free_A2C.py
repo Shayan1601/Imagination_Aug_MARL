@@ -55,10 +55,10 @@ class ModelFreeAgent(nn.Module):
         self.output_size = output_size
 
         # Assuming input_size is (3, 3, 3)
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=1)
         self.flatten = nn.Flatten()  # Add Flatten layer
-        self.fc1 = nn.Linear(64*3 * 3, 196)  # Update input size for fc1
+        self.fc1 = nn.Linear(32*3 * 3, 196)  # Update input size for fc1
         self.fc2 = nn.Linear(196, output_size[0])
 
     def forward(self, x):

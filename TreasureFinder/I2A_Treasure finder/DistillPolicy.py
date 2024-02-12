@@ -8,18 +8,19 @@ class DistillPolicyAgent(nn.Module):
         super(DistillPolicyAgent, self).__init__()
 
         # Assuming input_size is (3, 3, 3)
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
-        
-        self.flatten = nn.Flatten() 
-        #self.fc1 = nn.Linear(32* 3 * 3, 196)  # Adjusted input size for fc1
-        self.fc1 = nn.Linear(32* 3*3, 4)  # Adjusted output size for fc2
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.flatten = nn.Flatten()  # Add Flatten layer
+        self.fc1 = nn.Linear(128*3 * 3, 196)  # Update input size for fc1
+        self.fc2 = nn.Linear(196, 4)
 
     def forward(self, x):
         
         x = torch.relu(self.conv1(x))  
-        
+        x = torch.relu(self.conv2(x))
         x = self.flatten(x)
         x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
         
         
         return x

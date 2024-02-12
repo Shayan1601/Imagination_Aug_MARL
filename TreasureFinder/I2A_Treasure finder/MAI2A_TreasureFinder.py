@@ -1,17 +1,20 @@
 #Training I2A agents for the Treasure Finder multi agent environment
 #importing the dependencies
-#env model pre-trained
-
+#I'm trying to pretrain and deploy the env model on this one
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import os
 from itertools import count
 from collections import namedtuple
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
-from Treasure_Finder_gymformat import TreasureFinderEnv
+os.chdir('/Users/shayan/Desktop/Reboot treasure/March')
+
+#from Treasure_Finder_gymformat import TreasureFinderEnv
 from env_FindTreasure import EnvFindTreasure
 from Imagination_Core import I2A_FindTreasure
 
@@ -36,7 +39,7 @@ class ReplayMemory(object):
 
     def sample(self, batch_size):
         batch = np.random.choice(len(self.memory), batch_size, replace=False)
-        # TODO: take chunks of trajectories instead of single experiences
+        
         states, actions, rewards, next_states, dones = zip(*[self.memory[i] for i in batch])
         return list(states), list(actions), list(rewards), list(next_states), list(dones)
 
@@ -77,15 +80,14 @@ if __name__ == "__main__":
     epsilon = 1.0
     epsilon_decay = 0.999
     min_epsilon = 0.001
+    max_time_steps = 50  # Maximum number of time steps
+    update_target_frequency = 7
 
 
     # Instantiate the I2A models and optimizers for both agents
     model_agent1 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent1.rollout_len, agent_mode=1)
     model_agent2 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent2.rollout_len, agent_mode=2)
-    # optimizer_world_model_agent1 = optim.Adam(model_agent1.env_model.parameters(), lr=hyperparameters_agent1.lr)
-    # optimizer_world_model_agent2 = optim.Adam(model_agent2.env_model.parameters(), lr=hyperparameters_agent2.lr)
-    # optimizer_distilled_policy_agent1 = optim.Adam(model_agent1.distilledpolicy.parameters(), lr=hyperparameters_agent1.lr)
-    # optimizer_distilled_policy_agent2 = optim.Adam(model_agent2.distilledpolicy.parameters(), lr=hyperparameters_agent2.lr)
+    
     optimizer_agent1 = optim.Adam(model_agent1.parameters(), lr=hyperparameters_agent1.lr)
     optimizer_agent2 = optim.Adam(model_agent2.parameters(), lr=hyperparameters_agent2.lr)
 
@@ -98,13 +100,16 @@ if __name__ == "__main__":
     #Target network for improving the training of the agents
     target_network1 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent1.rollout_len, agent_mode=1)
     target_network2 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent2.rollout_len, agent_mode=2)
-    update_target_frequency = 7
+    
     
     # Main training loop
 
     mean_rewards_agent1 = []  # To store mean rewards for Agent 1
     mean_rewards_agent2 = []  # To store mean rewards for Agent 2
     mean_R_Plot = []
+    
+    # Start time
+    start_time = time.time()
 
     for episode in range(hyperparameters_agent1.num_episodes):
         state = env.reset()
@@ -115,7 +120,7 @@ if __name__ == "__main__":
         done = False
         episode_reward_agent1 = 0
         episode_reward_agent2 = 0
-        max_time_steps = 50  # Maximum number of time steps
+
 
         for t in count():
             # Select actions based on the current policies for both agents
@@ -187,19 +192,30 @@ if __name__ == "__main__":
                 # Backpropagation and optimization
                     # Set requires_grad to False for all parameters in the other agent's distilled policy
                 for param in model_agent2.distilledpolicy.parameters():
-                    param.requires_grad = True
+                    param.requires_grad = False
                 for param in model_agent1.distilledpolicy.parameters():
                     param.requires_grad = False
+                
+                for param in model_agent1.env_model.parameters():
+                    param.requires_grad = False
+                    
+                # for param in model_agent1.encoder.parameters():
+                #     param.requires_grad = False
                 optimizer_agent1.zero_grad()
                 loss_agent1.backward()
                 optimizer_agent1.step()
                
                     # Set requires_grad to False for all parameters in the other agent's distilled policy
-                for param in model_agent1.distilledpolicy.parameters():
-                    param.requires_grad = True
-                for param in model_agent2.distilledpolicy.parameters():
+                # for param in model_agent1.distilledpolicy.parameters():
+                #     param.requires_grad = False
+                # for param in model_agent2.distilledpolicy.parameters():
+                #     param.requires_grad = True
+                
+                for param in model_agent2.env_model.parameters():
                     param.requires_grad = False
                 
+                # for param in model_agent2.encoder.parameters():
+                #     param.requires_grad = False
                 optimizer_agent2.zero_grad()
                 loss_agent2.backward()
                 optimizer_agent2.step()
@@ -212,15 +228,14 @@ if __name__ == "__main__":
             
             episode_reward_agent1 += reward
             episode_reward_agent2 += reward
-
-            epsilon = max(epsilon * epsilon_decay, min_epsilon)
-            #updating the target networks
-            if episode % update_target_frequency == 0:
-                target_network1.load_state_dict(model_agent1.state_dict())
-                target_network2.load_state_dict(model_agent2.state_dict())
-                
+       
             if done or t >= max_time_steps:
                 break
+        epsilon = max(epsilon * epsilon_decay, min_epsilon)
+        #updating the target networks
+        if episode % update_target_frequency == 0:
+            target_network1.load_state_dict(model_agent1.state_dict())
+            target_network2.load_state_dict(model_agent2.state_dict())
 
 
         # Calculate episode and mean rewards 
@@ -240,18 +255,34 @@ if __name__ == "__main__":
     # Print total mean rewards
     print(f"Total Mean Reward after {hyperparameters_agent1.num_episodes} episodes : {total_mean_reward_agent1}") 
     
+    # End time
+    end_time = time.time()
+    # Total training time
+    training_time_seconds = end_time - start_time
+    training_hours = int(training_time_seconds // 3600)
+    training_minutes = int((training_time_seconds % 3600) // 60)
+
+    print(f"Total training time: {training_hours} hours and {training_minutes} minutes")
+    training_time_str = f"Training Time: {training_hours} hours {training_minutes} minutes"
+
+    
     # Plotting
     episodes = list(range(1, hyperparameters_agent1.num_episodes + 1, 1))
     plt.plot(episodes, mean_R_Plot, label='Mean Reward')
     plt.xlabel('Episodes')
     plt.ylabel('Mean Reward')
     plt.title('Mean Reward over Episodes')
+    plt.grid(True)
     plt.legend()
+    # Display training time beneath the y-axis
+    plt.text(20, min(mean_R_Plot) - 0.2, training_time_str, ha='left')
     plt.show()
           
-    # Save the agents after training
+    # Save the agents parameters after training
     torch.save(model_agent1.state_dict(), f'agent_{1}_model.pth') 
-    torch.save(model_agent2.state_dict(), f'agent_{2}_model.pth') 
+    torch.save(model_agent2.state_dict(), f'agent_{2}_model.pth')
+    torch.save(model_agent1.distilledpolicy.state_dict(), f'agent_{1}_distilledp.pth') 
+    torch.save(model_agent2.distilledpolicy.state_dict(), f'agent_{2}_distilledp.pth')  
     
        
             
