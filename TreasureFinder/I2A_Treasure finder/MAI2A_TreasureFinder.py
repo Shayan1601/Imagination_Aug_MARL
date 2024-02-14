@@ -88,9 +88,13 @@ if __name__ == "__main__":
     model_agent1 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent1.rollout_len, agent_mode=1)
     model_agent2 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent2.rollout_len, agent_mode=2)
     
-    optimizer_agent1 = optim.Adam(model_agent1.parameters(), lr=hyperparameters_agent1.lr)
-    optimizer_agent2 = optim.Adam(model_agent2.parameters(), lr=hyperparameters_agent2.lr)
-
+    optimizer_agent1 = optim.Adam(model_agent1.policy_head.parameters(), lr=hyperparameters_agent1.lr)
+    optimizer_agent2 = optim.Adam(model_agent2.policy_head.parameters(), lr=hyperparameters_agent2.lr)
+    optimizer_world_model_agent1 = optim.Adam(model_agent1.env_model.parameters(), lr=hyperparameters_agent1.lr)
+    optimizer_world_model_agent2 = optim.Adam(model_agent2.env_model.parameters(), lr=hyperparameters_agent2.lr)
+    optimizer_distilled_policy_agent1 = optim.Adam(model_agent1.distilledpolicy.parameters(), lr=hyperparameters_agent1.lr)
+    optimizer_distilled_policy_agent2 = optim.Adam(model_agent2.distilledpolicy.parameters(), lr=hyperparameters_agent2.lr)
+   
     world_model_loss_function = nn.CrossEntropyLoss()
     distil_policy_loss_function = nn.NLLLoss()
     # Initialize the replay memory for both agents
@@ -183,6 +187,55 @@ if __name__ == "__main__":
                 target_q_values2 = rewards2 + hyperparameters_agent2.gamma * next_q_values2 * (1 - dones)
                 target_q_values2 = target_q_values2.unsqueeze(1)
                 
+                def one_hot_encode(input_tensor, num_classes=4):
+
+
+                    batch_size = input_tensor.size(0)
+                    
+                    # Create an empty tensor to store the one-hot encoded values
+                    one_hot_tensor = torch.zeros(batch_size, num_classes)
+                    
+                    # Iterate through each element of the input tensor
+                    for i in range(batch_size):
+                        # Extract the value from the input tensor
+                        value = input_tensor[i].item()
+                        
+                        # Ensure the value is within the range of num_classes
+                        value = min(max(0, value), num_classes - 1)
+                        
+                        # Set the corresponding index in the one-hot tensor to 1
+                        one_hot_tensor[i, value] = 1
+                    
+                    return one_hot_tensor
+                
+                def one_hot(tensor):
+                    # Find the index of the largest element
+                    _, max_index = tensor.max(dim=1)
+                    
+                    # Create a one-hot encoded tensor
+                    one_hot_tensor = torch.zeros_like(tensor)
+                    one_hot_tensor[0, max_index] = 1
+                    
+                    return one_hot_tensor
+                
+                actions111 = one_hot_encode(actions11)
+                actions222 = one_hot_encode(actions22)
+                action_probs_agent11= one_hot(action_probs_agent1)
+                action_probs_agent22= one_hot(action_probs_agent2)
+                # WORLD MODEL LOSS #
+                imagined_states1, imagined_states2 = model_agent1.env_model(states1, states2, actions111, actions222)
+                world_loss_agent1 =F.mse_loss(imagined_states1, next_states1) 
+                imagined_states1, imagined_states2 = model_agent2.env_model(states1, states2, actions111, actions222)
+                world_loss_agent2 =F.mse_loss(imagined_states2, next_states2) 
+                
+               # DISTIL POLICY LOSS # 
+                dist_actions1 = model_agent1.distilledpolicy(states1)
+                dist_actions2 = model_agent1.distilledpolicy(states2)
+                distilled_policy_loss_agent1 = F.mse_loss(dist_actions1, action_probs_agent11)
+                distilled_policy_loss_agent2 = F.mse_loss(dist_actions2, action_probs_agent22)
+
+
+                
 
 
                 # Compute the loss for both agents
@@ -192,34 +245,62 @@ if __name__ == "__main__":
                 # Backpropagation and optimization
                     # Set requires_grad to False for all parameters in the other agent's distilled policy
                 for param in model_agent2.distilledpolicy.parameters():
-                    param.requires_grad = False
+                    param.requires_grad = True
                 for param in model_agent1.distilledpolicy.parameters():
                     param.requires_grad = False
                 
-                for param in model_agent1.env_model.parameters():
-                    param.requires_grad = False
+                # for param in model_agent1.env_model.parameters():
+                #     param.requires_grad = False
                     
                 # for param in model_agent1.encoder.parameters():
                 #     param.requires_grad = False
+                #updating each network seperately
                 optimizer_agent1.zero_grad()
                 loss_agent1.backward()
                 optimizer_agent1.step()
+                
+                optimizer_world_model_agent1.zero_grad()
+                world_loss_agent1.backward()
+                optimizer_world_model_agent1.step()
+                
+                optimizer_distilled_policy_agent1.zero_grad()
+                distilled_policy_loss_agent1.backward()
+                optimizer_distilled_policy_agent1.step()
+                
+                
+
                
                     # Set requires_grad to False for all parameters in the other agent's distilled policy
-                # for param in model_agent1.distilledpolicy.parameters():
-                #     param.requires_grad = False
-                # for param in model_agent2.distilledpolicy.parameters():
-                #     param.requires_grad = True
-                
-                for param in model_agent2.env_model.parameters():
+                for param in model_agent1.distilledpolicy.parameters():
+                    param.requires_grad = True
+                for param in model_agent2.distilledpolicy.parameters():
                     param.requires_grad = False
+                
+                # for param in model_agent2.env_model.parameters():
+                #     param.requires_grad = False
                 
                 # for param in model_agent2.encoder.parameters():
                 #     param.requires_grad = False
+                
+                #updating each network seperately
+                
                 optimizer_agent2.zero_grad()
                 loss_agent2.backward()
                 optimizer_agent2.step()
 
+                
+                optimizer_world_model_agent2.zero_grad()
+                world_loss_agent2.backward()
+                optimizer_world_model_agent2.step()
+                
+                torch.autograd.set_detect_anomaly(True)
+                
+                optimizer_distilled_policy_agent2.zero_grad()
+                distilled_policy_loss_agent2.backward()
+                optimizer_distilled_policy_agent2.step()
+                
+
+                
 
                 
             # Update the states and episode rewards for both agents

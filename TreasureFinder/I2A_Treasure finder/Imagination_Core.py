@@ -108,20 +108,7 @@ class I2A_FindTreasure(nn.Module):
             # Pass the  state and the previous encoder output through the encoder function
             enc_out = self.encoder(state,enc_out)
     
-        # if self.agent_mode ==1:    
-        #     action1 = self.distilledpolicy(state1)
-        #     action2 = distilledpolicyp(state2)
-            
-        # elif self.agent_mode == 2:
-        #     action1 = distilledpolicyp(state1)
-        #     action2 = self.distilledpolicy(state2)
-            
-        # if self.agent_mode ==1:  
-        #     enc_out, _ = self.env_model(state1, state2, action1, action2)  
 
-        # elif self.agent_mode == 2:
-        #     _, enc_out = self.env_model(state1, state2, action1, action2)
-            
            
             
 
