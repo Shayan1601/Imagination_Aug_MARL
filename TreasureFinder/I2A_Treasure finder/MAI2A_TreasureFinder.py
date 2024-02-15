@@ -233,56 +233,44 @@ if __name__ == "__main__":
                 dist_actions2 = model_agent1.distilledpolicy(states2)
                 distilled_policy_loss_agent1 = F.mse_loss(dist_actions1, action_probs_agent11)
                 distilled_policy_loss_agent2 = F.mse_loss(dist_actions2, action_probs_agent22)
-
-
                 
-
-
                 # Compute the loss for both agents
                 loss_agent1 = nn.functional.smooth_l1_loss(action_values_agent1, target_q_values1)
                 loss_agent2 = nn.functional.smooth_l1_loss(action_values_agent2, target_q_values2)
                 
-                # Backpropagation and optimization
-                    # Set requires_grad to False for all parameters in the other agent's distilled policy
-                for param in model_agent2.distilledpolicy.parameters():
-                    param.requires_grad = True
-                for param in model_agent1.distilledpolicy.parameters():
-                    param.requires_grad = False
+                total_loss_agent1 = loss_agent1 + hyperparameters_agent1.world_loss_weight * world_loss_agent1 + \
+                                    hyperparameters_agent1.distil_policy_loss_weight * distilled_policy_loss_agent1
                 
-                # for param in model_agent1.env_model.parameters():
-                #     param.requires_grad = False
-                    
-                # for param in model_agent1.encoder.parameters():
-                #     param.requires_grad = False
-                #updating each network seperately
-                optimizer_agent1.zero_grad()
-                loss_agent1.backward()
-                optimizer_agent1.step()
-                
-                optimizer_world_model_agent1.zero_grad()
-                world_loss_agent1.backward()
-                optimizer_world_model_agent1.step()
-                
-                optimizer_distilled_policy_agent1.zero_grad()
-                distilled_policy_loss_agent1.backward()
-                optimizer_distilled_policy_agent1.step()
-                
-                
+                total_loss_agent2 = loss_agent2 + hyperparameters_agent2.world_loss_weight* world_loss_agent2 + \
+                                    hyperparameters_agent2.distil_policy_loss_weight* distilled_policy_loss_agent2
 
-               
-                    # Set requires_grad to False for all parameters in the other agent's distilled policy
-                for param in model_agent1.distilledpolicy.parameters():
-                    param.requires_grad = True
+
+    
+                
+                # Backpropagation and optimization
+                    # Set requires_grad to False for all parameters in the other agent's distilled policy and env model
                 for param in model_agent2.distilledpolicy.parameters():
                     param.requires_grad = False
+                for param in model_agent1.distilledpolicy.parameters():
+                    param.requires_grad = False
                 
-                # for param in model_agent2.env_model.parameters():
+                for param in model_agent1.env_model.parameters():
+                    param.requires_grad = False
+                
+                for param in model_agent2.env_model.parameters():
+                    param.requires_grad = False
+                     
+                # for param in model_agent1.encoder.parameters():
                 #     param.requires_grad = False
                 
                 # for param in model_agent2.encoder.parameters():
                 #     param.requires_grad = False
                 
                 #updating each network seperately
+                
+                optimizer_distilled_policy_agent2.zero_grad()
+                distilled_policy_loss_agent2.backward()
+                optimizer_distilled_policy_agent2.step()
                 
                 optimizer_agent2.zero_grad()
                 loss_agent2.backward()
@@ -292,15 +280,20 @@ if __name__ == "__main__":
                 optimizer_world_model_agent2.zero_grad()
                 world_loss_agent2.backward()
                 optimizer_world_model_agent2.step()
-                
-                torch.autograd.set_detect_anomaly(True)
-                
-                optimizer_distilled_policy_agent2.zero_grad()
-                distilled_policy_loss_agent2.backward()
-                optimizer_distilled_policy_agent2.step()
-                
 
+                #updating each network seperately
                 
+                optimizer_distilled_policy_agent1.zero_grad()
+                distilled_policy_loss_agent1.backward()
+                optimizer_distilled_policy_agent1.step()
+                
+                optimizer_agent1.zero_grad()
+                loss_agent1.backward()
+                optimizer_agent1.step()
+                
+                optimizer_world_model_agent1.zero_grad()
+                world_loss_agent1.backward()
+                optimizer_world_model_agent1.step()
 
                 
             # Update the states and episode rewards for both agents

@@ -38,7 +38,7 @@ class I2A_FindTreasure(nn.Module):
 
         
         # Define the policy head
-        self.conv1 = nn.Conv2d(in_channels= 6, out_channels=64, kernel_size=3, stride=1, padding=1) 
+        self.conv1 = nn.Conv2d(in_channels= 3, out_channels=64, kernel_size=3, stride=1, padding=1) 
         self.conv2 = nn.Conv2d(in_channels= 64, out_channels=32, kernel_size=3, stride=1, padding=1) 
 
 
@@ -104,7 +104,6 @@ class I2A_FindTreasure(nn.Module):
         enc_out = torch.zeros((state1.size()[0], 3, 3, 3))
         for i in range(len(imagined_states) - 1, -1, -1):
             state = imagined_states[i]
-            
             # Pass the  state and the previous encoder output through the encoder function
             enc_out = self.encoder(state,enc_out)
     
@@ -122,6 +121,6 @@ class I2A_FindTreasure(nn.Module):
             final_state= torch.cat((state22, encoded_imagined_states), dim=1)
             #final_state = state22
         
-        action_prob = self.policy_head(final_state) 
+        action_prob = self.policy_head(encoded_imagined_states) 
 
         return action_prob
