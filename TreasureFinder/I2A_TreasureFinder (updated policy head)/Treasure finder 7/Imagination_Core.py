@@ -58,11 +58,11 @@ class I2A_FindTreasure(nn.Module):
         self.env_model.load_state_dict(torch.load('env_model.pth'))
 
         # Define the rollout encoder
-        # self.encoder = Encoder(self.state_dim, hidden_size = hidden_dim)
+        self.encoder = Encoder(self.state_dim, hidden_size = hidden_dim)
 
 
         # The model-free part of I2A
-        # self.model_free_agent = ModelFreeAgent(self.state_dim, self.action_dim)
+        self.model_free_agent = ModelFreeAgent(self.state_dim, self.action_dim)
 
 
         
@@ -113,24 +113,24 @@ class I2A_FindTreasure(nn.Module):
             state2 = next_state2
         
         # passing the imagined states through the Roll-out Encoder    
-        # enc_out = torch.zeros((state1.size()[0], 3, 3, 3))
-        # for i in range(len(imagined_states) - 1, -1, -1):
-        #     state = imagined_states[i]
+        enc_out = torch.zeros((state1.size()[0], 3, 3, 3))
+        for i in range(len(imagined_states) - 1, -1, -1):
+            state = imagined_states[i]
             
-        #     # Pass the  state and the previous encoder output through the encoder function
-        #     enc_out = self.encoder(state,enc_out)
+            # Pass the  state and the previous encoder output through the encoder function
+            enc_out = self.encoder(state,enc_out)
     
 
         
         # aggregating model-free and imagined states
-        # encoded_imagined_states = enc_out 
-        encoded_imagined_states = imagined_states 
+        encoded_imagined_states = enc_out 
+        # encoded_imagined_states = imagined_states 
         if self.agent_mode ==1:    
-            #final_state= torch.cat((state11, encoded_imagined_states), dim=1)
-            final_state = state11
+            final_state= torch.cat((state11, encoded_imagined_states), dim=1)
+            #final_state = state11
         elif self.agent_mode == 2:
-            #final_state= torch.cat((state22, encoded_imagined_states), dim=1)
-            final_state = state22
+            final_state= torch.cat((state22, encoded_imagined_states), dim=1)
+            # final_state = state22
         
         action_prob, value = self.policy_head(final_state) 
 

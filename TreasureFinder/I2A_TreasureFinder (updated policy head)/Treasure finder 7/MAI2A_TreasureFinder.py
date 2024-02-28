@@ -1,6 +1,9 @@
 #Training I2A agents for the Treasure Finder multi agent environment
 #importing the dependencies
-#I'm trying to pretrain and deploy the env model on this one
+#Env model and Distilled policy have been pretrained
+# weight update of all networks during the training has been off except for policy head 
+# policy head has been replaced by an A2C
+
 import time
 import torch
 import torch.nn as nn
@@ -13,7 +16,7 @@ import torch.nn.functional as F
 
 import matplotlib.pyplot as plt
 
-os.chdir('/Users/shayan/Desktop/Reboot treasure/March')
+
 
 #from Treasure_Finder_gymformat import TreasureFinderEnv
 from env_FindTreasure import EnvFindTreasure
@@ -99,12 +102,7 @@ if __name__ == "__main__":
     # Initialize the replay memory for both agents
     memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)
     memory_agent2 = ReplayMemory(hyperparameters_agent2.replay_memory_size)
-    
-    #Target network for improving the training of the agents
-    #target_network1 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent1.rollout_len, agent_mode=1)
-    #target_network2 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent2.rollout_len, agent_mode=2)
-    
-    
+
     # Main training loop
 
     mean_rewards_agent1 = []  # To store mean rewards for Agent 1
@@ -262,8 +260,10 @@ if __name__ == "__main__":
                 
                 for param in model_agent2.env_model.parameters():
                     param.requires_grad = False
-                # for param in model_agent1.encoder.parameters():
-                #     param.requires_grad = False
+                for param in model_agent1.encoder.parameters():
+                    param.requires_grad = False
+                for param in model_agent2.encoder.parameters():
+                    param.requires_grad = False
                 
                 #updating each network seperately
                 torch.autograd.set_detect_anomaly(True)
@@ -294,20 +294,7 @@ if __name__ == "__main__":
                 # optimizer_distilled_policy_agent1.zero_grad()
                 # distilled_policy_loss_agent1.backward()
                 # optimizer_distilled_policy_agent1.step()
-         
-                    # Set requires_grad to False for all parameters in the other agent's distilled policy
-                # for param in model_agent1.distilledpolicy.parameters():
-                #     param.requires_grad = True
-                # for param in model_agent2.distilledpolicy.parameters():
-                #     param.requires_grad = False
-                
-                # for param in model_agent2.env_model.parameters():
-                #     param.requires_grad = False
-                
-                # for param in model_agent2.encoder.parameters():
-                #     param.requires_grad = False
-                
-                #updating each network seperately
+
          
             # Update the states and episode rewards for both agents
             state1 = next_state1
@@ -319,10 +306,7 @@ if __name__ == "__main__":
             if done or t >= max_time_steps:
                 break
         epsilon = max(epsilon * epsilon_decay, min_epsilon)
-        #updating the target networks
-        # if episode % update_target_frequency == 0:
-        #     target_network1.load_state_dict(model_agent1.state_dict())
-        #     target_network2.load_state_dict(model_agent2.state_dict())
+
 
 
         # Calculate episode and mean rewards 
