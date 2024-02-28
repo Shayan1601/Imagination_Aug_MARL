@@ -10,6 +10,7 @@ import os
 from itertools import count
 from collections import namedtuple
 import torch.nn.functional as F
+
 import matplotlib.pyplot as plt
 
 os.chdir('/Users/shayan/Desktop/Reboot treasure/March')
@@ -51,7 +52,7 @@ replay_memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)
 replay_memory_agent2 = ReplayMemory(hyperparameters_agent2.replay_memory_size)
 
 # Function to select an action using the current policy
-def select_action ( model, state1, state2, distilledpolicy, epsilon):
+def select_action ( model, state1, state2, output_size, epsilon):
     #if epsilon > 0.95:
     if np.random.rand() < epsilon:
         # Random action
@@ -59,16 +60,16 @@ def select_action ( model, state1, state2, distilledpolicy, epsilon):
     else:
         # Use I2A module to produce action
         with torch.no_grad():
-            #action_space = torch.tensor([output_size[0]], dtype=torch.float32).unsqueeze(0)
+            action_space = torch.tensor([output_size]).unsqueeze(0)
             state1 = torch.tensor(state1, dtype=torch.float32)
             state1 = torch.Tensor(state1).unsqueeze(0)
             state2 = torch.tensor(state2, dtype=torch.float32)
             state2 = torch.Tensor(state2).unsqueeze(0)
-            action_probs = model(state1 ,state2, distilledpolicy)
+            action_probs, _ = model(state1 ,state2, action_space)
             #action_probs = torch.Tensor(action_probs).squeeze(1)
             
             action = np.array([int(torch.argmax(action_probs, dim=1).item())], dtype=np.int64)
-    return action.item() 
+    return action.item()
 
 # Main function to train and test the I2A agent
 if __name__ == "__main__":
@@ -80,8 +81,8 @@ if __name__ == "__main__":
     epsilon = 1.0
     epsilon_decay = 0.999
     min_epsilon = 0.001
-    max_time_steps = 50  # Maximum number of time steps
-    update_target_frequency = 7
+    max_time_steps = 400   # Maximum number of time steps
+    #update_target_frequency = 7
 
 
     # Instantiate the I2A models and optimizers for both agents
@@ -95,15 +96,13 @@ if __name__ == "__main__":
     optimizer_distilled_policy_agent1 = optim.Adam(model_agent1.distilledpolicy.parameters(), lr=hyperparameters_agent1.lr)
     optimizer_distilled_policy_agent2 = optim.Adam(model_agent2.distilledpolicy.parameters(), lr=hyperparameters_agent2.lr)
    
-    world_model_loss_function = nn.CrossEntropyLoss()
-    distil_policy_loss_function = nn.NLLLoss()
     # Initialize the replay memory for both agents
     memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)
     memory_agent2 = ReplayMemory(hyperparameters_agent2.replay_memory_size)
     
     #Target network for improving the training of the agents
-    target_network1 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent1.rollout_len, agent_mode=1)
-    target_network2 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent2.rollout_len, agent_mode=2)
+    #target_network1 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent1.rollout_len, agent_mode=1)
+    #target_network2 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent2.rollout_len, agent_mode=2)
     
     
     # Main training loop
@@ -111,26 +110,29 @@ if __name__ == "__main__":
     mean_rewards_agent1 = []  # To store mean rewards for Agent 1
     mean_rewards_agent2 = []  # To store mean rewards for Agent 2
     mean_R_Plot = []
+    action_agent11= torch.randint(0, 4, (1,))
+    action_agent22= torch.randint(0, 4, (1,))
     
     # Start time
     start_time = time.time()
 
     for episode in range(hyperparameters_agent1.num_episodes):
         state = env.reset()
-
-        state1 = env.get_agt1_obs()
-        state2 = env.get_agt2_obs()
-        
         done = False
         episode_reward_agent1 = 0
         episode_reward_agent2 = 0
-
-
+        
+        state1 = env.get_agt1_obs()
+        state2 = env.get_agt2_obs()
+        
         for t in count():
             # Select actions based on the current policies for both agents
 
-            action_agent1 = select_action(model_agent1, state1, state2, model_agent2.distilledpolicy,epsilon)
-            action_agent2 = select_action(model_agent2, state1, state2, model_agent1.distilledpolicy,epsilon)
+            action_agent1 = select_action(model_agent1, state1, state2, action_agent22,epsilon)
+            action_agent2 = select_action(model_agent2, state1, state2, action_agent11,epsilon)
+            
+            action_agent11= action_agent1
+            action_agent22= action_agent2
 
             # Execute the actions and store the experiences for both agents
             action_list= [action_agent1, action_agent2]
@@ -146,46 +148,54 @@ if __name__ == "__main__":
             ###############
             # TRAIN AGENT #
             ###############
-
+            
             if len(memory_agent1) >= hyperparameters_agent1.batch_size:
 
                 states1, actions1, rewards1, next_states1, dones = memory_agent1.sample(hyperparameters_agent1.batch_size)
                 states2, actions2, rewards2, next_states2, dones = memory_agent2.sample(hyperparameters_agent2.batch_size)
-     
+    
                 Trajectory = [states1, actions1, rewards1, next_states1]
 
 
-                states1 = torch.Tensor(states1)
-                states2 = torch.Tensor(states2)
-                next_states1= torch.Tensor(next_states1)
-                next_states2= torch.Tensor(next_states2)
+                states1 = torch.Tensor(np.array(states1))
+                states2 = torch.Tensor(np.array(states2))
+                next_states1= torch.Tensor(np.array(next_states1))
+                next_states2= torch.Tensor(np.array(next_states2))
                 actions1 = torch.LongTensor(actions1)
                 actions2 = torch.LongTensor(actions2)
                 rewards1 = torch.Tensor(rewards1)
                 rewards2 = torch.Tensor(rewards2)
                 dones = torch.Tensor(dones)
- 
-                
-                # Compute the current Q values for both agents
-                
-                action_probs_agent1= model_agent1(states1,states2, model_agent2.distilledpolicy)
-                actions11 = actions1.unsqueeze(-1)
-                      
-                action_values_agent1 = torch.gather(action_probs_agent1, 1,actions11)
-                               
-                next_q_values1 = target_network1(next_states1, next_states2, model_agent2.distilledpolicy).max(1)[0].detach()
-                target_q_values1 = rewards1 + hyperparameters_agent1.gamma * next_q_values1 * (1 - dones)
-                target_q_values1 = target_q_values1.unsqueeze(1)
-                
 
-                action_probs_agent2 = model_agent2(states1, states2, model_agent1.distilledpolicy)
-                actions22 = actions2.unsqueeze(-1)
-                                    
-                action_values_agent2 = torch.gather(action_probs_agent2, 1, actions22)
                 
-                next_q_values2 = target_network2(next_states1, next_states2, model_agent1.distilledpolicy).max(1)[0].detach()
-                target_q_values2 = rewards2 + hyperparameters_agent2.gamma * next_q_values2 * (1 - dones)
-                target_q_values2 = target_q_values2.unsqueeze(1)
+                # Compute the losses for both agents
+                #1
+
+                _, next_state_values1= model_agent1(next_states1, next_states2, actions2)
+                _, state_values1 = model_agent1(states1, states2, actions2)
+                actions11 = actions1.unsqueeze(-1)
+                
+                target_values1 = rewards1 + (1 - dones) * hyperparameters_agent1.gamma * next_state_values1
+                advantage1 = target_values1 - state_values1
+                
+                log_probs1, values1 = model_agent1(states1, states2, actions2)
+                actor_loss1 = -(log_probs1.gather(1, actions11) * advantage1.detach()).mean()
+                critic_loss1 = nn.functional.mse_loss(values1, target_values1.detach())
+                total_loss1 = actor_loss1 + critic_loss1
+                
+                #2
+                _, next_state_values2= model_agent2(next_states1, next_states2, actions1)
+                _, state_values2 = model_agent2(states1, states2, actions1)
+                actions22 = actions2.unsqueeze(-1)
+                
+                target_values2 = rewards2 + (1 - dones) * hyperparameters_agent1.gamma * next_state_values2
+                advantage2 = target_values2 - state_values2
+                
+                log_probs2, values2 = model_agent2(states1, states2, actions1)
+                actor_loss2 = -(log_probs2.gather(1, actions22) * advantage2.detach()).mean()
+                critic_loss2 = nn.functional.mse_loss(values2, target_values2.detach())
+                total_loss2 = actor_loss2 + critic_loss2
+
                 
                 def one_hot_encode(input_tensor, num_classes=4):
 
@@ -217,11 +227,10 @@ if __name__ == "__main__":
                     one_hot_tensor[0, max_index] = 1
                     
                     return one_hot_tensor
-                
                 actions111 = one_hot_encode(actions11)
                 actions222 = one_hot_encode(actions22)
-                action_probs_agent11= one_hot(action_probs_agent1)
-                action_probs_agent22= one_hot(action_probs_agent2)
+                action_probs_agent11= one_hot(log_probs1)
+                action_probs_agent22= one_hot(log_probs2)
                 # WORLD MODEL LOSS #
                 imagined_states1, imagined_states2 = model_agent1.env_model(states1, states2, actions111, actions222)
                 world_loss_agent1 =F.mse_loss(imagined_states1, next_states1) 
@@ -233,22 +242,16 @@ if __name__ == "__main__":
                 dist_actions2 = model_agent1.distilledpolicy(states2)
                 distilled_policy_loss_agent1 = F.mse_loss(dist_actions1, action_probs_agent11)
                 distilled_policy_loss_agent2 = F.mse_loss(dist_actions2, action_probs_agent22)
+
                 
-                # Compute the loss for both agents
-                loss_agent1 = nn.functional.smooth_l1_loss(action_values_agent1, target_q_values1)
-                loss_agent2 = nn.functional.smooth_l1_loss(action_values_agent2, target_q_values2)
-                
-                total_loss_agent1 = loss_agent1 + hyperparameters_agent1.world_loss_weight * world_loss_agent1 + \
+                total_loss_agent1 = total_loss1 + hyperparameters_agent1.world_loss_weight * world_loss_agent1 + \
                                     hyperparameters_agent1.distil_policy_loss_weight * distilled_policy_loss_agent1
                 
-                total_loss_agent2 = loss_agent2 + hyperparameters_agent2.world_loss_weight* world_loss_agent2 + \
+                total_loss_agent2 = total_loss2 + hyperparameters_agent2.world_loss_weight* world_loss_agent2 + \
                                     hyperparameters_agent2.distil_policy_loss_weight* distilled_policy_loss_agent2
-
-
-    
                 
                 # Backpropagation and optimization
-                    # Set requires_grad to False for all parameters in the other agent's distilled policy and env model
+                    # Set requires_grad to False for all parameters in the other agent's distilled policy
                 for param in model_agent2.distilledpolicy.parameters():
                     param.requires_grad = False
                 for param in model_agent1.distilledpolicy.parameters():
@@ -259,43 +262,53 @@ if __name__ == "__main__":
                 
                 for param in model_agent2.env_model.parameters():
                     param.requires_grad = False
-                     
                 # for param in model_agent1.encoder.parameters():
+                #     param.requires_grad = False
+                
+                #updating each network seperately
+                torch.autograd.set_detect_anomaly(True)
+                
+                # optimizer_distilled_policy_agent2.zero_grad()
+                # distilled_policy_loss_agent2.backward()
+                # optimizer_distilled_policy_agent2.step()
+                
+                                
+                optimizer_agent2.zero_grad()
+                total_loss2.backward()
+                optimizer_agent2.step()
+
+                
+                # optimizer_world_model_agent2.zero_grad()
+                # world_loss_agent2.backward()
+                # optimizer_world_model_agent2.step()
+                
+                
+                optimizer_agent1.zero_grad()
+                total_loss1.backward()
+                optimizer_agent1.step()
+                
+                # optimizer_world_model_agent1.zero_grad()
+                # world_loss_agent1.backward()
+                # optimizer_world_model_agent1.step()
+                
+                # optimizer_distilled_policy_agent1.zero_grad()
+                # distilled_policy_loss_agent1.backward()
+                # optimizer_distilled_policy_agent1.step()
+         
+                    # Set requires_grad to False for all parameters in the other agent's distilled policy
+                # for param in model_agent1.distilledpolicy.parameters():
+                #     param.requires_grad = True
+                # for param in model_agent2.distilledpolicy.parameters():
+                #     param.requires_grad = False
+                
+                # for param in model_agent2.env_model.parameters():
                 #     param.requires_grad = False
                 
                 # for param in model_agent2.encoder.parameters():
                 #     param.requires_grad = False
                 
                 #updating each network seperately
-                
-                optimizer_distilled_policy_agent2.zero_grad()
-                distilled_policy_loss_agent2.backward()
-                optimizer_distilled_policy_agent2.step()
-                
-                optimizer_agent2.zero_grad()
-                loss_agent2.backward()
-                optimizer_agent2.step()
-
-                
-                optimizer_world_model_agent2.zero_grad()
-                world_loss_agent2.backward()
-                optimizer_world_model_agent2.step()
-
-                #updating each network seperately
-                
-                optimizer_distilled_policy_agent1.zero_grad()
-                distilled_policy_loss_agent1.backward()
-                optimizer_distilled_policy_agent1.step()
-                
-                optimizer_agent1.zero_grad()
-                loss_agent1.backward()
-                optimizer_agent1.step()
-                
-                optimizer_world_model_agent1.zero_grad()
-                world_loss_agent1.backward()
-                optimizer_world_model_agent1.step()
-
-                
+         
             # Update the states and episode rewards for both agents
             state1 = next_state1
             state2 = next_state2
@@ -307,9 +320,9 @@ if __name__ == "__main__":
                 break
         epsilon = max(epsilon * epsilon_decay, min_epsilon)
         #updating the target networks
-        if episode % update_target_frequency == 0:
-            target_network1.load_state_dict(model_agent1.state_dict())
-            target_network2.load_state_dict(model_agent2.state_dict())
+        # if episode % update_target_frequency == 0:
+        #     target_network1.load_state_dict(model_agent1.state_dict())
+        #     target_network2.load_state_dict(model_agent2.state_dict())
 
 
         # Calculate episode and mean rewards 
@@ -342,14 +355,15 @@ if __name__ == "__main__":
     
     # Plotting
     episodes = list(range(1, hyperparameters_agent1.num_episodes + 1, 1))
-    plt.plot(episodes, mean_R_Plot, label='Mean Reward')
+    plt.plot(episodes, mean_R_Plot, label='I2A-Pretrained env Model')
     plt.xlabel('Episodes')
     plt.ylabel('Mean Reward')
-    plt.title('Mean Reward over Episodes')
+    plt.title('I2A - Treasure Finder(7)')
     plt.grid(True)
     plt.legend()
     # Display training time beneath the y-axis
-    plt.text(20, min(mean_R_Plot) - 0.2, training_time_str, ha='left')
+    plt.text(5, min(mean_R_Plot) - 0.2, training_time_str, ha='left')
+    plt.text(5, min(mean_R_Plot) + 3.8, f"Total Mean Reward: {total_mean_reward_agent1}", ha='left')
     plt.show()
           
     # Save the agents parameters after training

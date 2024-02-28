@@ -32,23 +32,14 @@ class Hyperparameters:
 
 # Define your hyperparameters here
 hyperparameters_agent1 = Hyperparameters(
-    num_episodes=5000,
-    batch_size= 80,
-    replay_memory_size=100000,
+    num_episodes=10000,
+    batch_size= 1,
+    replay_memory_size=1,
     rollout_len=1,
     gamma=0.999,
     lr=1e-4,
     world_loss_weight = 0.5,
     distil_policy_loss_weight=0.5
 )
-
-hyperparameters_agent2 = Hyperparameters(
-    num_episodes=5000,
-    batch_size=80,
-    replay_memory_size=100000,
-    rollout_len=1,
-    gamma=0.999,
-    lr=1e-4,
-    world_loss_weight = 0.5,
-    distil_policy_loss_weight=0.5
-)
+#considering agents to be homogeneous
+hyperparameters_agent2 = hyperparameters_agent1
