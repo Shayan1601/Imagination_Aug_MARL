@@ -111,7 +111,7 @@ if __name__ == "__main__":
     epsilon = 1.0
     epsilon_decay = 0.999
     min_epsilon = 0.001
-    max_time_steps = 1300  # Maximum number of time steps
+    max_time_steps = 1400  # Maximum number of time steps
     #update_target_frequency = 7
 
 

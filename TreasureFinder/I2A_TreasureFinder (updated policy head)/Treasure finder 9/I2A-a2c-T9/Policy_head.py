@@ -36,7 +36,7 @@ class ActorCritic(nn.Module):
         self.input_size = input_size
         
         self.features = nn.Sequential(
-            nn.Conv2d(6, 1000, kernel_size=3, stride=1),
+            nn.Conv2d(6, 500, kernel_size=3, stride=1),
             nn.ReLU(),
             # nn.Conv2d(2000, 1000, kernel_size=1, stride=1),
             # nn.ReLU(),
@@ -45,15 +45,15 @@ class ActorCritic(nn.Module):
         )
 
         self.flatten = nn.Flatten()
-        self.fc1_actor = nn.Linear(1000, 500)
-        self.fc2_actor = nn.Linear(500, 100)
-        self.fc3_actor = nn.Linear(100, 20)
-        self.fc4_actor = nn.Linear(20, output_size[0])
+        self.fc1_actor = nn.Linear(500, 100)
+      
+        self.fc2_actor = nn.Linear(100, 40)
+        self.fc3_actor = nn.Linear(40, output_size[0])
         
-        self.fc1_critic = nn.Linear(1000, 500)
-        self.fc2_critic = nn.Linear(500, 100)
-        self.fc3_critic = nn.Linear(100, 10)
-        self.fc4_critic = nn.Linear(10, 1)
+        self.fc1_critic = nn.Linear(500, 100)
+       
+        self.fc2_critic = nn.Linear(100, 40)
+        self.fc3_critic = nn.Linear(40, 1)
 
     def forward(self, x):
   
@@ -62,15 +62,15 @@ class ActorCritic(nn.Module):
 
         x = self.flatten(x)
         xx = torch.relu(self.fc1_actor(x))
-        xxx = torch.relu(self.fc2_actor(xx))
-        logits = torch.relu(self.fc3_actor(xxx))
-        action_probs = torch.softmax(self.fc4_actor(logits), dim=1)
+      
+        logits = torch.relu(self.fc2_actor(xx))
+        action_probs = torch.softmax(self.fc3_actor(logits), dim=1)
         
         # action_probs1 = one_hot(action_probs)
         
         # critic_input = torch.cat((x, action_probs1), dim=1)
-        val =self.fc3_critic(self.fc2_critic(torch.relu(self.fc1_critic(x))))
-        value = self.fc4_critic(val)
+        value =self.fc3_critic(self.fc2_critic(torch.relu(self.fc1_critic(x))))
+       
         return action_probs, value
     # def feature_size(self):
     #     return self.features(autograd.Variable(torch.zeros(1, *self.input_size))).view(1, -1).size(1)
