@@ -44,11 +44,11 @@ class ActorCritic(nn.Module):
 
         self.flatten = nn.Flatten()
         # self.fc1_actor = nn.Linear(32*3*3, 64)
-        self.fc1_actor = nn.Linear(self.feature_size(), 256)
-        self.fc2_actor = nn.Linear(256, output_size[0])
+        self.fc1_actor = nn.Linear(self.feature_size(), 512)
+        self.fc2_actor = nn.Linear(512, output_size[0])
         
-        self.fc1_critic = nn.Linear(self.feature_size(), 256)
-        self.fc2_critic = nn.Linear(256, 1)
+        self.fc1_critic = nn.Linear(self.feature_size(), 512)
+        self.fc2_critic = nn.Linear(512, 1)
 
     def forward(self, x):
         # x = torch.relu(self.conv1(x)) 
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     output_size = (4,) #env.action_size  # Update with the appropriate action size attribute
     learning_rate = 0.0001
     gamma = 0.99
-    max_time_steps = 750   
+    max_time_steps = 200   
     buffer_size = 1
     batch_size = 1
     epsilon = 1.0

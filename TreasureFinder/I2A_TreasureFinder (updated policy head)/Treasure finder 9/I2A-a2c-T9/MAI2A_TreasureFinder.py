@@ -1,9 +1,6 @@
 #Training I2A agents for the Treasure Finder multi agent environment
 #importing the dependencies
-#Env model and Distilled policy have been pretrained
-# weight update of all networks during the training has been off except for policy head 
-# policy head has been replaced by an A2C
-
+#I'm trying to pretrain and deploy the env model on this one
 import time
 import torch
 import torch.nn as nn
@@ -15,7 +12,6 @@ from collections import namedtuple
 import torch.nn.functional as F
 
 import matplotlib.pyplot as plt
-
 
 
 #from Treasure_Finder_gymformat import TreasureFinderEnv
@@ -73,18 +69,49 @@ def select_action ( model, state1, state2, output_size, epsilon):
             
             action = np.array([int(torch.argmax(action_probs, dim=1).item())], dtype=np.int64)
     return action.item()
+#defining One-hot fcns
+def one_hot_encode(input_tensor, num_classes=4):
+
+
+    batch_size = input_tensor.size(0)
+    
+    # Create an empty tensor to store the one-hot encoded values
+    one_hot_tensor = torch.zeros(batch_size, num_classes)
+    
+    # Iterate through each element of the input tensor
+    for i in range(batch_size):
+        # Extract the value from the input tensor
+        value = input_tensor[i].item()
+        
+        # Ensure the value is within the range of num_classes
+        value = min(max(0, value), num_classes - 1)
+        
+        # Set the corresponding index in the one-hot tensor to 1
+        one_hot_tensor[i, value] = 1
+    
+    return one_hot_tensor
+
+def one_hot(tensor):
+    # Find the index of the largest element
+    _, max_index = tensor.max(dim=1)
+    
+    # Create a one-hot encoded tensor
+    one_hot_tensor = torch.zeros_like(tensor)
+    one_hot_tensor[0, max_index] = 1
+    
+    return one_hot_tensor
 
 # Main function to train and test the I2A agent
 if __name__ == "__main__":
     # Create the environment
-    env = EnvFindTreasure(7)
+    env = EnvFindTreasure(9)
 
     input_size = (3, 3, 3)  # Update with the appropriate state size attribute
     output_size = (4,)
     epsilon = 1.0
     epsilon_decay = 0.999
     min_epsilon = 0.001
-    max_time_steps = 400   # Maximum number of time steps
+    max_time_steps = 1300  # Maximum number of time steps
     #update_target_frequency = 7
 
 
@@ -92,8 +119,8 @@ if __name__ == "__main__":
     model_agent1 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent1.rollout_len, agent_mode=1)
     model_agent2 = I2A_FindTreasure(input_size, output_size, hyperparameters_agent2.rollout_len, agent_mode=2)
     
-    optimizer_agent1 = optim.Adam(model_agent1.policy_head.parameters(), lr=hyperparameters_agent1.lr)
-    optimizer_agent2 = optim.Adam(model_agent2.policy_head.parameters(), lr=hyperparameters_agent2.lr)
+    optimizer_agent1 = optim.Adam(model_agent1.parameters(), lr=hyperparameters_agent1.lr)
+    optimizer_agent2 = optim.Adam(model_agent2.parameters(), lr=hyperparameters_agent2.lr)
     optimizer_world_model_agent1 = optim.Adam(model_agent1.env_model.parameters(), lr=hyperparameters_agent1.lr)
     optimizer_world_model_agent2 = optim.Adam(model_agent2.env_model.parameters(), lr=hyperparameters_agent2.lr)
     optimizer_distilled_policy_agent1 = optim.Adam(model_agent1.distilledpolicy.parameters(), lr=hyperparameters_agent1.lr)
@@ -103,6 +130,27 @@ if __name__ == "__main__":
     memory_agent1 = ReplayMemory(hyperparameters_agent1.replay_memory_size)
     memory_agent2 = ReplayMemory(hyperparameters_agent2.replay_memory_size)
 
+    
+    #Disabling the env model and distill policies weights
+    for param in model_agent2.distilledpolicy.parameters():
+        param.requires_grad = True
+        
+    for param in model_agent1.distilledpolicy.parameters():
+        param.requires_grad = True
+    
+    for param in model_agent1.env_model.parameters():
+        param.requires_grad = True
+    
+    for param in model_agent2.env_model.parameters():
+        param.requires_grad = True
+        
+    for param in model_agent1.encoder.parameters():
+        param.requires_grad = True
+    for param in model_agent2.encoder.parameters():
+        param.requires_grad = True
+        
+    
+    
     # Main training loop
 
     mean_rewards_agent1 = []  # To store mean rewards for Agent 1
@@ -195,36 +243,7 @@ if __name__ == "__main__":
                 total_loss2 = actor_loss2 + critic_loss2
 
                 
-                def one_hot_encode(input_tensor, num_classes=4):
 
-
-                    batch_size = input_tensor.size(0)
-                    
-                    # Create an empty tensor to store the one-hot encoded values
-                    one_hot_tensor = torch.zeros(batch_size, num_classes)
-                    
-                    # Iterate through each element of the input tensor
-                    for i in range(batch_size):
-                        # Extract the value from the input tensor
-                        value = input_tensor[i].item()
-                        
-                        # Ensure the value is within the range of num_classes
-                        value = min(max(0, value), num_classes - 1)
-                        
-                        # Set the corresponding index in the one-hot tensor to 1
-                        one_hot_tensor[i, value] = 1
-                    
-                    return one_hot_tensor
-                
-                def one_hot(tensor):
-                    # Find the index of the largest element
-                    _, max_index = tensor.max(dim=1)
-                    
-                    # Create a one-hot encoded tensor
-                    one_hot_tensor = torch.zeros_like(tensor)
-                    one_hot_tensor[0, max_index] = 1
-                    
-                    return one_hot_tensor
                 actions111 = one_hot_encode(actions11)
                 actions222 = one_hot_encode(actions22)
                 action_probs_agent11= one_hot(log_probs1)
@@ -236,8 +255,8 @@ if __name__ == "__main__":
                 world_loss_agent2 =F.mse_loss(imagined_states2, next_states2) 
                 
                # DISTIL POLICY LOSS # 
-                dist_actions1 = model_agent1.distilledpolicy(states1)
-                dist_actions2 = model_agent1.distilledpolicy(states2)
+                dist_actions1, _ = model_agent1.distilledpolicy(states1)
+                dist_actions2, _ = model_agent1.distilledpolicy(states2)
                 distilled_policy_loss_agent1 = F.mse_loss(dist_actions1, action_probs_agent11)
                 distilled_policy_loss_agent2 = F.mse_loss(dist_actions2, action_probs_agent22)
 
@@ -250,23 +269,11 @@ if __name__ == "__main__":
                 
                 # Backpropagation and optimization
                     # Set requires_grad to False for all parameters in the other agent's distilled policy
-                for param in model_agent2.distilledpolicy.parameters():
-                    param.requires_grad = True
-                for param in model_agent1.distilledpolicy.parameters():
-                    param.requires_grad = True
                 
-                for param in model_agent1.env_model.parameters():
-                    param.requires_grad = True
-                
-                for param in model_agent2.env_model.parameters():
-                    param.requires_grad = True
-                for param in model_agent1.encoder.parameters():
-                    param.requires_grad = True
-                for param in model_agent2.encoder.parameters():
-                    param.requires_grad = True
+
                 
                 #updating each network seperately
-                torch.autograd.set_detect_anomaly(True)
+                #torch.autograd.set_detect_anomaly(True)
                 
                 # optimizer_distilled_policy_agent2.zero_grad()
                 # distilled_policy_loss_agent2.backward()
@@ -274,7 +281,7 @@ if __name__ == "__main__":
                 
                                 
                 optimizer_agent2.zero_grad()
-                total_loss2.backward()
+                total_loss_agent2.backward()
                 optimizer_agent2.step()
 
                 
@@ -284,7 +291,7 @@ if __name__ == "__main__":
                 
                 
                 optimizer_agent1.zero_grad()
-                total_loss1.backward()
+                total_loss_agent1.backward()
                 optimizer_agent1.step()
                 
                 # optimizer_world_model_agent1.zero_grad()
@@ -294,7 +301,20 @@ if __name__ == "__main__":
                 # optimizer_distilled_policy_agent1.zero_grad()
                 # distilled_policy_loss_agent1.backward()
                 # optimizer_distilled_policy_agent1.step()
-
+         
+                    # Set requires_grad to False for all parameters in the other agent's distilled policy
+                # for param in model_agent1.distilledpolicy.parameters():
+                #     param.requires_grad = True
+                # for param in model_agent2.distilledpolicy.parameters():
+                #     param.requires_grad = False
+                
+                # for param in model_agent2.env_model.parameters():
+                #     param.requires_grad = False
+                
+                # for param in model_agent2.encoder.parameters():
+                #     param.requires_grad = False
+                
+                #updating each network seperately
          
             # Update the states and episode rewards for both agents
             state1 = next_state1
@@ -342,7 +362,7 @@ if __name__ == "__main__":
     plt.plot(episodes, mean_R_Plot, label='I2A-Pretrained env Model')
     plt.xlabel('Episodes')
     plt.ylabel('Mean Reward')
-    plt.title('I2A - Treasure Finder(7)')
+    plt.title('I2A - Treasure Finder(9)')
     plt.grid(True)
     plt.legend()
     # Display training time beneath the y-axis
