@@ -36,7 +36,7 @@ class ActorCritic(nn.Module):
         self.input_size = input_size
         
         self.features = nn.Sequential(
-            nn.Conv2d(6, 500, kernel_size=3, stride=1),
+            nn.Conv2d(6, 550, kernel_size=3, stride=1),
             nn.ReLU(),
             # nn.Conv2d(2000, 1000, kernel_size=1, stride=1),
             # nn.ReLU(),
@@ -45,14 +45,14 @@ class ActorCritic(nn.Module):
         )
 
         self.flatten = nn.Flatten()
-        self.fc1_actor = nn.Linear(500, 100)
+        self.fc1_actor = nn.Linear(550, 150)
       
-        self.fc2_actor = nn.Linear(100, 40)
+        self.fc2_actor = nn.Linear(150, 40)
         self.fc3_actor = nn.Linear(40, output_size[0])
         
-        self.fc1_critic = nn.Linear(500, 100)
+        self.fc1_critic = nn.Linear(550, 150)
        
-        self.fc2_critic = nn.Linear(100, 40)
+        self.fc2_critic = nn.Linear(150, 40)
         self.fc3_critic = nn.Linear(40, 1)
 
     def forward(self, x):
